@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Dropdown Navigation</title>
+    <style>
+        :root {
+            --primary-color: #4a4a4a;
+            --hover-color: #007bff;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .profile-container {
+            position: relative;
+        }
+
+        .profile-picture {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            object-fit: cover;
+            transition: 
+                transform var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease,
+                border var(--transition-speed) ease;
+        }
+
+        .profile-picture:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 2px solid var(--hover-color);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 220px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.9);
+            transition: 
+                opacity var(--transition-speed) ease,
+                transform var(--transition-speed) ease,
+                visibility var(--transition-speed) ease;
+            padding: 10px;
+            z-index: 10;
+        }
+
+        .dropdown-menu::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: 10px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid white;
+        }
+
+        .dropdown-menu.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 
+                background-color var(--transition-speed) ease,
+                transform var(--transition-speed) ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f0f0f0;
+            transform: translateX(5px);
+            color: var(--hover-color);
+        }
+
+        .dropdown-item i {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .dropdown-item .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.1);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        .divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <img src="https://placekitten.com/200/200" alt="Profile" class="profile-picture">
+        <div class="dropdown-menu">
+            <div class="dropdown-item">
+                <i class="fas fa-user"></i>Profile
+            </div>
+            <div class="dropdown-item">
+                <i class="fas fa-cog"></i>Settings
+            </div>
+            <div class="divider"></div>
+            <div class="dropdown-item">
+                <i class="fas fa-sign-out-alt"></i>Logout
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const profilePicture = document.querySelector('.profile-picture');
+            const dropdownMenu = document.querySelector('.dropdown-menu');
+            const dropdownItems = document.querySelectorAll('.dropdown-item');
+
+            // Toggle dropdown
+            profilePicture.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('active');
+            });
+
+            // Dropdown item click with ripple effect
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    ripple.style.left = `${e.offsetX}px`;
+                    ripple.style.top = `${e.offsetY}px`;
+                    item.appendChild(ripple);
+
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!profilePicture.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.classList.remove('active');
+                }
+            });
+
+            // Close dropdown on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    dropdownMenu.classList.remove('active');
+                }
+            });
+        });
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</body>
+</html>

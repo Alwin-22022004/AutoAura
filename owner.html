@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Owner Dashboard - Premium Car Services</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        overflow-x: hidden;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        min-height: 100vh;
+        background: linear-gradient(to right, #f5f5f5, #ffffff);
+      }
+
+      .sidebar {
+        background: #1a1a1a;
+        color: white;
+        padding: 20px;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease-in-out;
+      }
+
+      .sidebar h2 {
+        margin-bottom: 30px;
+        font-size: 24px;
+        color: #ffd700;
+        text-align: center;
+      }
+
+      .nav-item {
+        padding: 15px 20px;
+        margin: 10px 0;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: all 0.3s;
+      }
+
+      .nav-item:hover {
+        background: #333;
+        transform: translateX(10px);
+      }
+
+      .nav-item.active {
+        background: #444;
+      }
+
+      .main-content {
+        padding: 30px;
+        background: #f5f5f5;
+        animation: fadeIn 0.5s ease-in-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+
+      .header h1 {
+        animation: slideIn 0.6s ease-in-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(to right, #007bff, #0056b3);
+        animation: slideBar 2s infinite;
+      }
+
+      @keyframes slideBar {
+        0% {
+          transform: translateX(-100%);
+        }
+        50% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(100%);
+        }
+      }
+
+      .stat-card h3 {
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .stat-card .value {
+        font-size: 28px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .content-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        transform: scale(0.98);
+        transition: transform 0.3s ease;
+      }
+
+      .content-section:hover {
+        transform: scale(1);
+      }
+
+      .listing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .listing-card {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #eee;
+        transition: box-shadow 0.3s;
+      }
+
+      .listing-card:hover {
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .button {
+        background: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .button:hover {
+        background: #0056b3;
+        transform: translateY(-3px);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .add-part-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 500px;
+      }
+
+      .add-part-form input {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+
+      .add-part-form input[type="file"] {
+        padding: 5px;
+      }
+
+      #parts-section:not(.hidden) {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="sidebar">
+        <h2>Owner Dashboard</h2>
+        <div class="nav-item active" data-section="dashboard">Dashboard</div>
+        <div class="nav-item" data-section="cars">Car Listings</div>
+        <div class="nav-item" data-section="parts">Spare Parts</div>
+        <div class="nav-item" data-section="bookings">Bookings</div>
+        <div class="nav-item" data-section="workshop">Workshop</div>
+        <div class="nav-item" data-section="earnings">Earnings</div>
+        <div class="nav-item" data-section="messages">Messages</div>
+      </div>
+
+      <div class="main-content">
+        <div id="parts-section" class="hidden">
+          <div class="header">
+            <h1>Spare Parts Management</h1>
+          </div>
+
+          <div class="parts-form content-section">
+            <h2>Add New Spare Part</h2>
+            <form id="addPartForm" class="add-part-form">
+              <input
+                type="text"
+                id="partName"
+                placeholder="Part Name"
+                required
+              />
+              <input
+                type="number"
+                id="partPrice"
+                placeholder="Price"
+                required
+              />
+              <input type="file" id="partImage" accept="image/*" required />
+              <button type="submit" class="button">Post Part</button>
+            </form>
+          </div>
+
+          <div class="content-section">
+            <h2>Parts Inventory</h2>
+            <div id="partsGrid" class="listing-grid">
+              <!-- Parts will be displayed here -->
+            </div>
+          </div>
+        </div>
+
+        <div id="dashboard-section">
+          <div class="header">
+            <h1>Dashboard Overview</h1>
+            <button class="button">Add New Listing</button>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3>Active Listings</h3>
+              <div class="value">12</div>
+            </div>
+            <div class="stat-card">
+              <h3>Pending Bookings</h3>
+              <div class="value">5</div>
+            </div>
+            <div class="stat-card">
+              <h3>Monthly Earnings</h3>
+              <div class="value">$8,450</div>
+            </div>
+            <div class="stat-card">
+              <h3>Total Reviews</h3>
+              <div class="value">128</div>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <h2>Recent Listings</h2>
+            <div class="listing-grid">
+              <div class="listing-card">
+                <h3>Mercedes-Benz S-Class</h3>
+                <p>Premium Sedan | $200/day</p>
+                <p>Status: Available</p>
+              </div>
+              <div class="listing-card">
+                <h3>BMW 7 Series Parts</h3>
+                <p>Original Brake Pads | $350</p>
+                <p>Status: In Stock</p>
+              </div>
+              <div class="listing-card">
+                <h3>Luxury Workshop Services</h3>
+                <p>Premium Maintenance | Various</p>
+                <p>Status: Available</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.querySelectorAll(".nav-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          document.querySelectorAll(".nav-item").forEach((navItem) => {
+            navItem.classList.remove("active");
+          });
+          item.classList.add("active");
+          const section = item.dataset.section;
+
+          // Hide all sections
+          document
+            .querySelectorAll("#dashboard-section, #parts-section")
+            .forEach((section) => {
+              section.classList.add("hidden");
+            });
+
+          // Show selected section
+          if (section === "parts") {
+            document.querySelector("#parts-section").classList.remove("hidden");
+          } else if (section === "dashboard") {
+            document
+              .querySelector("#dashboard-section")
+              .classList.remove("hidden");
+          }
+        });
+      });
+
+      document.querySelector(".button").addEventListener("click", () => {
+        alert("Opening new listing form...");
+      });
+
+      function updateStats() {
+        const stats = {
+          listings: Math.floor(Math.random() * 20) + 10,
+          bookings: Math.floor(Math.random() * 10) + 1,
+          earnings: Math.floor(Math.random() * 10000) + 5000,
+          reviews: Math.floor(Math.random() * 50) + 100,
+        };
+
+        document
+          .querySelectorAll(".stat-card .value")
+          .forEach((element, index) => {
+            const keys = Object.keys(stats);
+            const value = stats[keys[index]];
+            element.textContent = index === 2 ? `$${value}` : value;
+          });
+      }
+
+      setInterval(updateStats, 30000);
+
+      // Add form handling
+      document
+        .getElementById("addPartForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const name = document.getElementById("partName").value;
+          const price = document.getElementById("partPrice").value;
+          const imageFile = document.getElementById("partImage").files[0];
+
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const partCard = `
+            <div class="listing-card">
+              <img src="${e.target.result}" alt="${name}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px;">
+              <h3>${name}</h3>
+              <p>Price: $${price}</p>
+              <p>Status: In Stock</p>
+            </div>
+          `;
+
+            document
+              .getElementById("partsGrid")
+              .insertAdjacentHTML("afterbegin", partCard);
+          };
+
+          if (imageFile) {
+            reader.readAsDataURL(imageFile);
+          }
+
+          // Reset form
+          e.target.reset();
+        });
+    </script>
+  </body>
+</html>
