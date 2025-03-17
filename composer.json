@@ -1,0 +1,6 @@
+{
+    "require": {
+        "razorpay/razorpay": "^2.9",
+        "google/apiclient": "^2.15.0"
+    }
+}
