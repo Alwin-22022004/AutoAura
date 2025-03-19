@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="40" height="40" rx="8" fill="#FFF5E6"/>
+    <path d="M20 8L10 16V32H30V16L20 8Z" stroke="#F5B754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 32V20H24V32" stroke="#F5B754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M20 14L15 18V19H25V18L20 14Z" stroke="#F5B754" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
