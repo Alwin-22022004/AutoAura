@@ -69,15 +69,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $features_json = json_encode($features);
 
     // Insert into database
-    $sql = "INSERT INTO cars (car_name, car_description, car_features, price, images, status) VALUES (?, ?, ?, ?, ?, 'pending')";
+    $sql = "INSERT INTO cars (car_name, car_description, car_features, price, images, status, owner_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)";
     
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssds", 
+    $stmt->bind_param("sssdsi", 
         $car_name,
         $description,
         $features_json,
         $price,
-        $images_json
+        $images_json,
+        $_SESSION['user_id']
     );
     
     if ($stmt->execute()) {

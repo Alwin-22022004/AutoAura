@@ -882,6 +882,138 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         background-color: #f8d7da;
         border-color: #f5c6cb;
       }
+
+      /* Truncated content styles */
+      .truncated {
+        max-height: 60px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .show-more {
+        color: #007bff;
+        cursor: pointer;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: inline-block;
+      }
+
+      .show-more:hover {
+        text-decoration: underline;
+      }
+
+      .car-images.truncated {
+        max-height: 100px;
+      }
+
+      .car-images img {
+        margin: 2px;
+        width: 100px;
+        height: auto;
+      }
+
+      .feature-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .feature-list li {
+        margin-bottom: 4px;
+      }
+
+      /* Truncated content styles */
+      .truncate-content {
+        position: relative;
+        transition: max-height 0.3s ease;
+      }
+
+      .truncated {
+        max-height: 60px;
+        overflow: hidden;
+      }
+
+      .truncated::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 20px;
+        background: linear-gradient(transparent, #fff);
+        pointer-events: none;
+      }
+
+      .show-more {
+        color: #007bff;
+        cursor: pointer;
+        font-size: 0.9em;
+        padding: 4px 8px;
+        margin-top: 5px;
+        display: inline-block;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        background: rgba(0, 123, 255, 0.1);
+      }
+
+      .show-more:hover {
+        background: rgba(0, 123, 255, 0.2);
+        text-decoration: none;
+      }
+
+      /* Car images styles */
+      .car-images {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+        padding: 8px;
+        transition: max-height 0.3s ease;
+      }
+
+      .car-images.truncated {
+        max-height: 120px;
+        overflow: hidden;
+      }
+
+      .car-images img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+        transition: transform 0.2s ease;
+      }
+
+      .car-images img:hover {
+        transform: scale(1.05);
+      }
+
+      /* Features list styles */
+      .feature-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .feature-list li {
+        margin-bottom: 6px;
+        padding: 4px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .feature-list li:last-child {
+        border-bottom: none;
+      }
+
+      .feature-list strong {
+        color: #555;
+        margin-right: 8px;
+      }
+
+      /* Description styles */
+      .car-description {
+        line-height: 1.5;
+        color: #444;
+      }
     </style>
   </head>
   <body>
@@ -1019,7 +1151,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
             $sql = "SELECT * FROM cars ORDER BY id DESC";
             $result = $conn->query($sql);
             
-            if ($result && $result->num_rows > 0): ?>
+            if ($result && $result->num_rows > 0): 
+                // Check if there are any pending cars
+                $has_pending = false;
+                $rows = [];
+                while ($car = $result->fetch_assoc()) {
+                    $rows[] = $car;
+                    if ($car['status'] === 'pending') {
+                        $has_pending = true;
+                    }
+                }
+            ?>
                 <div id="alertContainer"></div>
                 <table>
                     <thead>
@@ -1032,16 +1174,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                             <th>Images</th>
                             <th>RC Document</th>
                             <th>Status</th>
+                            <?php if ($has_pending): ?>
                             <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($car = $result->fetch_assoc()): ?>
+                        <?php foreach ($rows as $car): ?>
                             <tr id="row-<?php echo $car['id']; ?>">
                                 <td><?php echo $car['id']; ?></td>
                                 <td><?php echo htmlspecialchars($car['car_name']); ?></td>
-                                <td><?php echo htmlspecialchars($car['car_description']); ?></td>
                                 <td>
+                                    <div class="truncate-content car-description">
+                                        <?php echo htmlspecialchars($car['car_description']); ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="truncate-content">
                                     <?php 
                                     $features = json_decode($car['car_features'], true);
                                     if ($features && is_array($features)) {
@@ -1054,22 +1203,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         echo "<div class='feature-text'>" . nl2br(htmlspecialchars($car['car_features'])) . "</div>";
                                     }
                                     ?>
+                                    </div>
                                 </td>
                                 <td>₹<?php echo number_format($car['price'], 2); ?></td>
-                                <td class="car-images">
+                                <td>
+                                    <div class="car-images">
                                     <?php 
                                     $images = json_decode($car['images'], true);
                                     if ($images && is_array($images)) {
                                         // Display main image
                                         if (!empty($images['main_image'])) {
-                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" width="100" alt="Main Car Image" style="margin: 2px;">';
+                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" alt="Main Car Image">';
                                         }
                                         
                                         // Display thumbnails
                                         if (!empty($images['thumbnails']) && is_array($images['thumbnails'])) {
                                             foreach ($images['thumbnails'] as $thumbnail) {
                                                 if (!empty($thumbnail)) {
-                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" width="100" alt="Car Thumbnail" style="margin: 2px;">';
+                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" alt="Car Thumbnail">';
                                                 }
                                             }
                                         }
@@ -1077,6 +1228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         echo "<p>No Images Available</p>";
                                     }
                                     ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <?php if (!empty($car['rc_document'])): ?>
@@ -1092,6 +1244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         <?php echo ucfirst(htmlspecialchars($car['status'])); ?>
                                     </span>
                                 </td>
+                                <?php if ($has_pending): ?>
                                 <td>
                                     <?php if ($car['status'] === 'pending'): ?>
                                         <div class="action-buttons">
@@ -1104,8 +1257,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         </div>
                                     <?php endif; ?>
                                 </td>
+                                <?php endif; ?>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             <?php else: ?>
@@ -1117,9 +1271,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
 
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
+        $(document).ready(function() {
+            initializeTruncatedContent();
+        });
+
+        function initializeTruncatedContent() {
+            // Initialize truncated content
+            $('.truncate-content').each(function() {
+                const content = $(this);
+                if (content.height() > 60) {
+                    content.addClass('truncated');
+                    content.after('<span class="show-more">Show More</span>');
+                }
+            });
+
+            // Initialize truncated images
+            $('.car-images').each(function() {
+                const images = $(this);
+                if (images.height() > 100) {
+                    images.addClass('truncated');
+                    images.append('<div class="show-more">Show More Images</div>');
+                }
+            });
+
+            // Handle show more clicks
+            $(document).on('click', '.show-more', function() {
+                const button = $(this);
+                const content = button.prev();
+                
+                if (content.hasClass('truncated')) {
+                    content.removeClass('truncated');
+                    button.text('Show Less');
+                } else {
+                    content.addClass('truncated');
+                    button.text(content.hasClass('car-images') ? 'Show More Images' : 'Show More');
+                }
+            });
+        }
+
         function updateCarStatus(carId, action) {
             const row = $(`#row-${carId}`);
             const actionButtons = row.find('.action-buttons');
+            const statusCell = $(`#status-${carId}`);
 
             if (!confirm(`Are you sure you want to ${action} this car listing? This action cannot be undone.`)) return;
 
@@ -1128,36 +1321,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
             actionButtons.find('button').prop('disabled', true);
 
             $.ajax({
-                url: '', // Current page URL
+                url: 'car_status_update.php',
                 method: 'POST',
                 data: {
                     car_id: carId,
                     action: action,
                     csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
                 },
-                success: function(data) {
-                    const response = JSON.parse(data);
+                dataType: 'json',
+                success: function(response) {
                     if (response.success) {
                         // Update status cell with animation
-                        const statusCell = $(`#status-${carId}`);
                         statusCell.fadeOut(300, function() {
-                            statusCell.html(`<span class="status-label ${action}">${response.new_status}</span>`).fadeIn(300);
+                            const statusHtml = `<span class="status ${response.new_status.toLowerCase()}">${response.new_status}</span>`;
+                            $(this).html(statusHtml).fadeIn(300);
                         });
 
-                        // Change button text and style
-                        const button = action === 'approve' ? row.find('.btn-approve') : row.find('.btn-reject');
-                        button.removeClass(action === 'approve' ? 'btn-approve' : 'btn-reject')
-                              .addClass(action === 'approve' ? 'btn-disable' : 'btn-enable')
-                              .html(`<i class="fas ${action === 'approve' ? 'fa-eye-slash' : 'fa-eye'}"></i> ${action === 'approve' ? 'Disable' : 'Enable'}`);
+                        // Remove action buttons after successful update
+                        actionButtons.fadeOut(300);
+
+                        // Show success message
+                        showAlert('success', response.message);
 
                         // Update dashboard counters
                         updateDashboardCounters(action);
-                        showAlert('success', response.message);
                     } else {
                         showAlert('error', response.message || 'Error updating car status');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
                     showAlert('error', 'An error occurred while updating the car status');
                 },
                 complete: function() {
@@ -1217,105 +1410,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         </script>
 
         <style>
-        .status-label {
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            text-transform: capitalize;
+        /* Button styles */
+        .btn-enable, .btn-disable {
+            transition: all 0.3s ease;
         }
 
-        .status-label.pending {
-            background-color: #ffcc00;
-            color: #000;
-        }
-
-        .status-label.approved {
+        .btn-enable {
             background-color: #28a745;
-            color: #fff;
+            color: white;
         }
 
-        .status-label.rejected {
+        .btn-disable {
             background-color: #dc3545;
-            color: #fff;
+            color: white;
         }
-        </style>
 
-        <style>
-            @keyframes fadeOut {
-                from { opacity: 1; transform: translateX(0); }
-                to { opacity: 0; transform: translateX(-20px); }
-            }
+        .btn-enable:hover, .btn-disable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-            #alertContainer {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 1000;
-            }
+        /* Row transition */
+        tr {
+            transition: background-color 0.3s ease;
+        }
 
-            .alert {
-                padding: 15px 25px;
-                margin-bottom: 10px;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                animation: slideIn 0.3s ease;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            }
+        /* Alert styles */
+        #alertContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
 
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
+        .alert {
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-            .alert.success {
-                color: #155724;
-                background-color: #d4edda;
-                border-color: #c3e6cb;
-            }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
 
-            .alert.error {
-                color: #721c24;
-                background-color: #f8d7da;
-                border-color: #f5c6cb;
-            }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(-20px); }
+        }
 
-            .action-buttons {
-                display: flex;
-                gap: 8px;
-                justify-content: center;
-            }
+        .alert.success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
 
-            .btn {
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                transition: all 0.3s ease;
-            }
-
-            .btn-approve {
-                background-color: #28a745;
-                color: white;
-            }
-
-            .btn-approve:hover {
-                background-color: #218838;
-                transform: translateY(-2px);
-            }
-
-            .btn-reject {
-                background-color: #dc3545;
-                color: white;
-            }
-
-            .btn-reject:hover {
-                background-color: #c82333;
-                transform: translateY(-2px);
-            }
+        .alert.error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
         </style>
 
       </div>
@@ -1441,7 +1598,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
             $sql = "SELECT * FROM cars WHERE status = 'approved' ORDER BY id DESC";
             $result = $conn->query($sql);
             
-            if ($result && $result->num_rows > 0): ?>
+            if ($result && $result->num_rows > 0): 
+                // Check if there are any pending cars
+                $has_pending = false;
+                $rows = [];
+                while ($car = $result->fetch_assoc()) {
+                    $rows[] = $car;
+                    if ($car['status'] === 'pending') {
+                        $has_pending = true;
+                    }
+                }
+            ?>
                 <div id="alertContainer"></div>
                 <table>
                     <thead>
@@ -1455,16 +1622,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                             <th>RC Document</th>
                             <th>Status</th>
                             <th>Visibility</th>
+                            <?php if ($has_pending): ?>
                             <th>Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($car = $result->fetch_assoc()): ?>
+                        <?php foreach ($rows as $car): ?>
                             <tr id="row-<?php echo $car['id']; ?>">
                                 <td><?php echo $car['id']; ?></td>
                                 <td><?php echo htmlspecialchars($car['car_name']); ?></td>
-                                <td><?php echo htmlspecialchars($car['car_description']); ?></td>
                                 <td>
+                                    <div class="truncate-content car-description">
+                                        <?php echo htmlspecialchars($car['car_description']); ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="truncate-content">
                                     <?php 
                                     $features = json_decode($car['car_features'], true);
                                     if ($features && is_array($features)) {
@@ -1477,22 +1651,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         echo "<div class='feature-text'>" . nl2br(htmlspecialchars($car['car_features'])) . "</div>";
                                     }
                                     ?>
+                                    </div>
                                 </td>
                                 <td>₹<?php echo number_format($car['price'], 2); ?></td>
-                                <td class="car-images">
+                                <td>
+                                    <div class="car-images">
                                     <?php 
                                     $images = json_decode($car['images'], true);
                                     if ($images && is_array($images)) {
                                         // Display main image
                                         if (!empty($images['main_image'])) {
-                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" width="100" alt="Main Car Image" style="margin: 2px;">';
+                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" alt="Main Car Image">';
                                         }
                                         
                                         // Display thumbnails
                                         if (!empty($images['thumbnails']) && is_array($images['thumbnails'])) {
                                             foreach ($images['thumbnails'] as $thumbnail) {
                                                 if (!empty($thumbnail)) {
-                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" width="100" alt="Car Thumbnail" style="margin: 2px;">';
+                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" alt="Car Thumbnail">';
                                                 }
                                             }
                                         }
@@ -1500,6 +1676,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         echo "<p>No Images Available</p>";
                                     }
                                     ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <?php if (!empty($car['rc_document'])): ?>
@@ -1525,6 +1702,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         <?php echo $car['is_active'] ? 'Disable' : 'Enable'; ?>
                                     </button>
                                 </td>
+                                <?php if ($has_pending): ?>
                                 <td>
                                     <div class="action-buttons">
                                         <button class="btn btn-delete" onclick="deleteCar(<?php echo $car['id']; ?>)">
@@ -1532,8 +1710,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                         </button>
                                     </div>
                                 </td>
+                                <?php endif; ?>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             <?php else: ?>
@@ -1731,7 +1910,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
       }
 
       // Alert function for showing notifications
-      function showAlert(message, type) {
+      function showAlert(type, message) {
           const alertContainer = document.getElementById('alertContainer');
           const alert = document.createElement('div');
           alert.className = `alert ${type}`;
@@ -1924,4 +2103,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
       }
       </script>
 
-      <div class="section" id="inventory">{{ ... }}
+      <div class="section" id="inventory">{{ ... }}</div>
+
+    <style>
+        /* Table styles */
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table td {
+            vertical-align: top;
+            padding: 12px;
+        }
+
+        /* Truncated content styles */
+        .truncate-content {
+            position: relative;
+            transition: max-height 0.3s ease;
+            min-height: 40px;
+        }
+
+        .truncated {
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .truncated::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25px;
+            background: linear-gradient(transparent, #fff);
+            pointer-events: none;
+        }
+
+        .show-more {
+            color: #007bff;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 4px 8px;
+            margin-top: 5px;
+            display: inline-block;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .show-more:hover {
+            background: rgba(0, 123, 255, 0.2);
+        }
+
+        /* Car images styles */
+        .car-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            transition: max-height 0.3s ease;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .car-images.truncated {
+            max-height: 120px;
+            overflow: hidden;
+        }
+
+        .car-images img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            transition: transform 0.2s ease;
+        }
+
+        .car-images img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Features list styles */
+        .feature-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .feature-list li {
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-list strong {
+            color: #555;
+            margin-right: 8px;
+            min-width: 80px;
+            display: inline-block;
+        }
+
+        /* Description styles */
+        .car-description {
+            line-height: 1.5;
+            color: #444;
+        }
+    </style>
+  </body>
+</html>

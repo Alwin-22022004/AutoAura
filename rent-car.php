@@ -147,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Book <?php echo htmlspecialchars($car['car_name']); ?> - LUXE DRIVE</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         * {
             margin: 0;
@@ -389,6 +390,389 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 grid-template-columns: 1fr;
             }
         }
+
+        .location-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            background: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .location-popup h2 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .location-popup h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 3px;
+            background: #f5b754;
+            border-radius: 2px;
+        }
+
+        .cities-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .city-option {
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .city-option:hover {
+            border-color: #f5b754;
+            transform: translateY(-2px);
+        }
+
+        .city-option.selected {
+            background: rgba(245, 183, 84, 0.1);
+            border-color: #f5b754;
+        }
+
+        .city-option img {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 8px;
+            transition: transform 0.3s ease;
+        }
+
+        .city-option:hover img {
+            transform: scale(1.1);
+        }
+
+        .city-option div {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        .locations-list {
+            background: #f9f9f9;
+            border-radius: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .location-option {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            margin-bottom: 5px;
+        }
+
+        .location-option:hover {
+            background: rgba(245, 183, 84, 0.1);
+            transform: translateX(5px);
+        }
+
+        .location-option.selected {
+            background: rgba(245, 183, 84, 0.2);
+            transform: translateX(5px);
+        }
+
+        .location-option i {
+            color: #f5b754;
+            width: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .location-option:hover i {
+            transform: scale(1.2);
+        }
+
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .close-popup {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-popup:hover {
+            color: #333;
+            background: rgba(0, 0, 0, 0.05);
+            transform: rotate(90deg);
+        }
+
+        .next-btn {
+            background: #f5b754;
+            color: white;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .next-btn:hover {
+            background: #e4a643;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 183, 84, 0.2);
+        }
+
+        .next-btn:active {
+            transform: translateY(0);
+        }
+
+        #pickup_location {
+            cursor: pointer;
+        }
+
+        .main-location-content,
+        .home-delivery-content {
+            background-color: #f5f5e6;
+            border-radius: 12px;
+            width: 100%;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            color: #8b8b8b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .modal-body {
+            padding: 16px 20px;
+        }
+
+        .search-location-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1a1a1a;
+        }
+
+        .search-input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 20px 14px 40px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            outline: none;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #f2ca00;
+        }
+
+        .location-options .location-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .location-icon {
+            margin-right: 12px;
+            color: #666;
+            display: flex;
+        }
+
+        .location-text {
+            font-size: 16px;
+            color: #555;
+        }
+
+        .map-container {
+            height: 400px;
+            width: 100%;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .location-button {
+            background-color: #f5b754;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .location-button:hover {
+            background-color: #e4a643;
+        }
+
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .radius-select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .error {
+            color: #ff4444;
+            margin: 10px 0;
+            display: none;
+        }
+
+        #map-interface {
+            padding: 15px;
+        }
+
+        #map-picker {
+            padding: 15px;
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .confirm-btn {
+            background: #f5b754;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+
+        .confirm-btn:hover {
+            background: #e4a643;
+        }
+
+        #info, #address {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .booking-summary {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .booking-summary h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .summary-details {
+            display: grid;
+            gap: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item .label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .detail-item .value {
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -435,7 +819,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="left-section">
                 <div class="form-group">
                     <label for="start_date">Pickup Date</label>
-                    <input type="date" id="start_date" name="start_date" required min="<?php echo date('Y-m-d'); ?>" onchange="calculateTotal()">
+                    <input type="date" id="start_date" name="start_date" required min="<?php echo date('Y-m-d'); ?>" onchange="updateReturnDateOptions(); calculateTotal()">
                 </div>
 
                 <div class="form-group">
@@ -445,24 +829,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label for="end_date">Return Date</label>
-                    <input type="date" id="end_date" name="end_date" required min="<?php echo date('Y-m-d'); ?>" onchange="calculateTotal()">
+                    <input type="date" id="end_date" name="end_date" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="pickup_location">Pickup Location</label>
-                    <input type="text" id="pickup_location" name="pickup_location" placeholder="Enter pickup location" required>
+                    <label for="pickup_location">Choose your pick location</label>
+                    <input type="text" id="pickup_location" name="pickup_location" placeholder="Choose pickup location" required readonly>
                 </div>
             </div>
 
             <div class="right-section">
                 <div class="form-group">
-                    <label for="center">Nearest Car Center</label>
+                    <label for="center">Additional services</label>
                     <select id="center" name="center" required>
-                        <option value="">Select a center</option>
-                        <option value="central">LUXE DRIVE Central</option>
-                        <option value="north">LUXE DRIVE North</option>
-                        <option value="south">LUXE DRIVE South</option>
-                        <option value="east">LUXE DRIVE East</option>
+                        <option value="">Select a service</option>
+                        <option value="Nothing">Nothing</option>
+                        <option value="Flower Decorations"> Flower Decorations</option>
+                        <option value="Power Bank & Charging Kit">Power Bank & Charging Kit</option>
+                        <option value="Luxury Refreshments">Luxury Refreshments</option>
                     </select>
                 </div>
 
@@ -479,7 +863,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <h2>Booking Summary</h2>
                     <div class="summary-item">
                         <span>Base Rate (<?php echo htmlspecialchars($car['car_name']); ?>)</span>
-                        <span>₹<?php echo number_format($car['price']); ?>/day</span>
+                        <span>₹<?php echo number_format($car['price']); ?> / day</span>
                     </div>
                     <div class="summary-item">
                         <span>Driver Charges</span>
@@ -500,11 +884,504 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <?php if (isset($show_payment) && $show_payment): ?>
+        <div class="booking-summary">
+            <h3>Booking Details</h3>
+            <div class="summary-details">
+                <div class="detail-item">
+                    <span class="label">Pickup Date:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['start_date']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Pickup Time:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['pickup_time']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Return Date:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['end_date']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Pickup Location:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['pickup_location']); ?></span>
+                </div>
+                <?php if (!empty($_POST['additional_services'])): ?>
+                <div class="detail-item">
+                    <span class="label">Additional Services:</span>
+                    <span class="value">
+                        <?php 
+                        $services = is_array($_POST['additional_services']) ? 
+                            implode(', ', array_map('htmlspecialchars', $_POST['additional_services'])) : 
+                            htmlspecialchars($_POST['additional_services']);
+                        echo $services;
+                        ?>
+                    </span>
+                </div>
+                <?php endif; ?>
+                <div class="detail-item">
+                    <span class="label">Payment Method:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['payment_method']); ?></span>
+                </div>
+            </div>
+        </div>
         <button id="razorpay-button" style="display: block;">Pay Now</button>
         <?php endif; ?>
     </div>
 
+    <div class="popup-overlay" role="presentation"></div>
+    <div class="location-popup" role="dialog" aria-labelledby="location-title">
+        <!-- Main location selection content -->
+        <div class="main-location-content">
+            <button class="close-popup" aria-label="Close location picker"><i class="fas fa-times"></i></button>
+            <h2 id="location-title">Select Pickup Location</h2>
+            <div class="cities-grid" role="listbox" aria-label="Available cities">
+                <div class="city-option" data-city="bengaluru" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/bengaluru.svg" alt="Bengaluru city icon">
+                    <div>Bengaluru</div>
+                </div>
+                <div class="city-option" data-city="calicut" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/calicut.svg" alt="Calicut city icon">
+                    <div>Calicut</div>
+                </div>
+                <div class="city-option" data-city="chennai" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/chennai.svg" alt="Chennai city icon">
+                    <div>Chennai</div>
+                </div>
+                <div class="city-option" data-city="cochin" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/cochin.svg" alt="Cochin city icon">
+                    <div>Cochin</div>
+                </div>
+                <div class="city-option" data-city="hyderabad" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/hyderabad.svg" alt="Hyderabad city icon">
+                    <div>Hyderabad</div>
+                </div>
+                <div class="city-option" data-city="trivandrum" role="option" tabindex="0" aria-selected="false">
+                    <img src="assets/images/cities/trivandrum.svg" alt="Trivandrum city icon">
+                    <div>Trivandrum</div>
+                </div>
+            </div>
+            <div class="locations-list" role="listbox" aria-label="Available pickup locations"></div>
+            <button class="next-btn">Next</button>
+        </div>
+
+        <!-- Home delivery content -->
+        <div class="home-delivery-content" style="display: none;">
+            <div class="modal-header">
+                <button class="back-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
+                <h1 class="modal-title">Home Delivery</h1>
+            </div>
+            
+            <div class="modal-body">
+                <div class="location-options">
+                    <div class="location-option" id="current-location">
+                        <span class="location-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <line x1="12" y1="2" x2="12" y2="4"></line>
+                                <line x1="12" y1="20" x2="12" y2="22"></line>
+                                <line x1="2" y1="12" x2="4" y2="12"></line>
+                                <line x1="20" y1="12" x2="22" y2="12"></line>
+                            </svg>
+                        </span>
+                        <span class="location-text">Use my current location</span>
+                    </div>
+                    
+                    <div id="map-interface" style="display: none;">
+                        <div class="controls">
+                            <select id="searchRadius" class="radius-select">
+                                <option value="5">5 km</option>
+                                <option value="10" selected>10 km</option>
+                                <option value="20">20 km</option>
+                                <option value="50">50 km</option>
+                            </select>
+                            <button id="locationButton" class="location-button">
+                                <i class="fas fa-location-arrow"></i> Get My Location
+                            </button>
+                        </div>
+
+                        <div id="error" class="error"></div>
+                        <div id="map" class="map-container"></div>
+                    </div>
+                    
+                    <div class="location-option" id="map-location">
+                        <span class="location-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 1 6"></polygon>
+                                <line x1="8" y1="2" x2="8" y2="18"></line>
+                                <line x1="16" y1="6" x2="16" y2="22"></line>
+                            </svg>
+                        </span>
+                        <span class="location-text">Set location on the map</span>
+                    </div>
+                </div>
+
+                <!-- Add map picker interface (initially hidden) -->
+                <div id="map-picker" style="display: none;">
+                    <h2>Select a Location</h2>
+                    <p>Click on the map to pick a location.</p>
+                    <div id="location-map" class="map-container" style="height: 500px; margin: 20px 0;"></div>
+                    <div class="info" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <p><strong>Latitude:</strong> <span id="lat">Not selected</span></p>
+                        <p><strong>Longitude:</strong> <span id="lng">Not selected</span></p>
+                        <p><strong>Address:</strong> <span id="address">Not selected</span></p>
+                        <div class="button-container" style="margin-top: 20px;">
+                            <button type="button" id="confirm-location" class="confirm-btn" disabled>Confirm Location</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // Location data
+        const locationData = {
+            bengaluru: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, Whitefield' },
+                { icon: 'fa-plane', name: 'Bengaluru International Airport' },
+                { icon: 'fa-train', name: 'Bengaluru City Railway Station' }
+            ],
+            calicut: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, Calicut' },
+                { icon: 'fa-plane', name: 'Calicut International Airport' },
+                { icon: 'fa-train', name: 'Calicut Railway Station' }
+            ],
+            chennai: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, T Nagar' },
+                { icon: 'fa-plane', name: 'Chennai International Airport' },
+                { icon: 'fa-train', name: 'Chennai Central' },
+                { icon: 'fa-train', name: 'Chennai Egmore' }
+            ],
+            cochin: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, Edapally' },
+                { icon: 'fa-plane', name: 'Cochin International Airport' },
+                { icon: 'fa-train', name: 'North Railway Station' },
+                { icon: 'fa-train', name: 'South Railway Station' }
+            ],
+            hyderabad: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, Hitech City' },
+                { icon: 'fa-plane', name: 'Rajiv Gandhi International Airport' },
+                { icon: 'fa-train', name: 'Secunderabad Railway Station' },
+                { icon: 'fa-train', name: 'Hyderabad Deccan Station' }
+            ],
+            trivandrum: [
+                { icon: 'fa-home', name: 'Home Delivery' },
+                { icon: 'fa-building', name: 'IndusGo, Technopark' },
+                { icon: 'fa-plane', name: 'Trivandrum International Airport' },
+                { icon: 'fa-train', name: 'Trivandrum Central' }
+            ]
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const pickupLocationInput = document.getElementById('pickup_location');
+            const locationPopup = document.querySelector('.location-popup');
+            const popupOverlay = document.querySelector('.popup-overlay');
+            const closePopup = document.querySelector('.close-popup');
+            const cityOptions = document.querySelectorAll('.city-option');
+            const locationsList = document.querySelector('.locations-list');
+            const nextBtn = document.querySelector('.next-btn');
+
+            // Show popup when clicking the pickup location input
+            pickupLocationInput.addEventListener('click', function() {
+                locationPopup.style.display = 'block';
+                popupOverlay.style.display = 'block';
+                // Focus the first city option
+                cityOptions[0].focus();
+            });
+
+            // Prevent the input from being editable directly
+            pickupLocationInput.readOnly = true;
+
+            function closeLocationPopup() {
+                locationPopup.style.display = 'none';
+                popupOverlay.style.display = 'none';
+                pickupLocationInput.focus();
+            }
+
+            // Close popup when clicking the close button or overlay
+            closePopup.addEventListener('click', closeLocationPopup);
+            popupOverlay.addEventListener('click', closeLocationPopup);
+
+            // Close popup when pressing Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && locationPopup.style.display === 'block') {
+                    closeLocationPopup();
+                }
+            });
+
+            // Handle keyboard navigation for city options
+            cityOptions.forEach((city, index) => {
+                city.addEventListener('keydown', function(e) {
+                    let targetCity;
+                    switch(e.key) {
+                        case 'ArrowRight':
+                            targetCity = cityOptions[index + 1] || cityOptions[0];
+                            break;
+                        case 'ArrowLeft':
+                            targetCity = cityOptions[index - 1] || cityOptions[cityOptions.length - 1];
+                            break;
+                        case 'ArrowDown':
+                            targetCity = cityOptions[index + 3] || cityOptions[index];
+                            break;
+                        case 'ArrowUp':
+                            targetCity = cityOptions[index - 3] || cityOptions[index];
+                            break;
+                        case 'Enter':
+                        case ' ':
+                            e.preventDefault();
+                            city.click();
+                            return;
+                    }
+                    if (targetCity) {
+                        targetCity.focus();
+                    }
+                });
+
+                city.addEventListener('click', function() {
+                    // Update ARIA selected states
+                    cityOptions.forEach(c => {
+                        c.setAttribute('aria-selected', 'false');
+                        c.classList.remove('selected');
+                    });
+                    this.setAttribute('aria-selected', 'true');
+                    this.classList.add('selected');
+                    
+                    // Get city locations
+                    const cityLocations = locationData[this.dataset.city] || [];
+                    
+                    // Populate locations list
+                    locationsList.innerHTML = cityLocations.map((location, idx) => `
+                        <div class="location-option" role="option" tabindex="0" aria-selected="false">
+                            <i class="fas ${location.icon}" aria-hidden="true"></i>
+                            <span>${location.name}</span>
+                        </div>
+                    `).join('');
+
+                    // Handle location selection and keyboard navigation
+                    const locationOptions = locationsList.querySelectorAll('.location-option');
+                    locationOptions.forEach((option, idx) => {
+                        option.addEventListener('keydown', function(e) {
+                            let targetOption;
+                            switch(e.key) {
+                                case 'ArrowDown':
+                                    targetOption = locationOptions[idx + 1] || locationOptions[0];
+                                    break;
+                                case 'ArrowUp':
+                                    targetOption = locationOptions[idx - 1] || locationOptions[locationOptions.length - 1];
+                                    break;
+                                case 'Enter':
+                                case ' ':
+                                    e.preventDefault();
+                                    option.click();
+                                    return;
+                            }
+                            if (targetOption) {
+                                targetOption.focus();
+                            }
+                        });
+
+                        option.addEventListener('click', function() {
+                            locationOptions.forEach(o => {
+                                o.setAttribute('aria-selected', 'false');
+                                o.classList.remove('selected');
+                            });
+                            this.setAttribute('aria-selected', 'true');
+                            this.classList.add('selected');
+                            nextBtn.focus();
+                        });
+                    });
+
+                    // Focus the first location option
+                    if (locationOptions.length > 0) {
+                        locationOptions[0].focus();
+                    }
+                });
+            });
+
+            // Close popup when clicking the next button
+            nextBtn.addEventListener('click', function() {
+                const selectedCity = document.querySelector('.city-option[aria-selected="true"]');
+                const selectedLocation = document.querySelector('.location-option[aria-selected="true"]');
+                
+                if (selectedCity && selectedLocation) {
+                    const cityName = selectedCity.querySelector('div').textContent.trim();
+                    const locationName = selectedLocation.querySelector('span').textContent;
+                    pickupLocationInput.value = `${locationName}, ${cityName}`;
+                    closeLocationPopup();
+                }
+            });
+
+            // Select Cochin by default
+            const cochinOption = document.querySelector('.city-option[data-city="cochin"]');
+            if (cochinOption) {
+                cochinOption.click();
+            }
+
+            let map;
+            let userMarker;
+            let radiusCircle;
+            const markers = [];
+
+            // Initialize map when current location is clicked
+            document.getElementById('current-location').addEventListener('click', function() {
+                const mapInterface = document.getElementById('map-interface');
+                mapInterface.style.display = 'block';
+                
+                if (!map) {
+                    initMap();
+                }
+            });
+
+            function initMap() {
+                map = L.map('map').setView([10.8505, 76.2711], 7);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: ' OpenStreetMap contributors'
+                }).addTo(map);
+
+                // Add click handler for location button
+                document.getElementById('locationButton').addEventListener('click', getUserLocation);
+            }
+
+            function getUserLocation() {
+                if (navigator.geolocation) {
+                    document.getElementById('error').textContent = "Detecting your location...";
+                    document.getElementById('error').style.display = 'block';
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        // Success callback
+                        (position) => {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            const radius = document.getElementById('searchRadius').value;
+                            
+                            document.getElementById('error').style.display = 'none';
+                            updateMapView(lat, lng, radius);
+                            
+                            // Update the pickup location input and close popup
+                            reverseGeocode(lat, lng);
+                        },
+                        // Error callback
+                        (error) => {
+                            let errorMessage = "Unable to get your location.";
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    errorMessage = "Location access was denied. Please enable location services.";
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    errorMessage = "Location information is unavailable.";
+                                    break;
+                                case error.TIMEOUT:
+                                    errorMessage = "The request to get location timed out.";
+                                    break;
+                            }
+                            showError(errorMessage);
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                } else {
+                    showError("Geolocation is not supported by this browser.");
+                }
+            }
+
+            function updateMapView(lat, lng, radius) {
+                if (userMarker) map.removeLayer(userMarker);
+                if (radiusCircle) map.removeLayer(radiusCircle);
+
+                userMarker = L.marker([lat, lng]).addTo(map);
+                
+                radiusCircle = L.circle([lat, lng], {
+                    radius: radius * 1000,
+                    color: '#f5b754',
+                    fillColor: '#f5b754',
+                    fillOpacity: 0.1,
+                    weight: 1
+                }).addTo(map);
+
+                map.fitBounds(radiusCircle.getBounds());
+            }
+
+            function reverseGeocode(lat, lng) {
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const address = data.display_name;
+                        pickupLocationInput.value = `${address} (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+                        
+                        // Close the entire location popup
+                        const locationPopup = document.querySelector('.location-popup');
+                        const popupOverlay = document.querySelector('.popup-overlay');
+                        
+                        if (locationPopup) locationPopup.style.display = 'none';
+                        if (popupOverlay) popupOverlay.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error getting address:', error);
+                        pickupLocationInput.value = `Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        
+                        // Close popup even if there's an error getting the address
+                        const locationPopup = document.querySelector('.location-popup');
+                        const popupOverlay = document.querySelector('.popup-overlay');
+                        
+                        if (locationPopup) locationPopup.style.display = 'none';
+                        if (popupOverlay) popupOverlay.style.display = 'none';
+                    });
+            }
+
+            function showError(message) {
+                const error = document.getElementById('error');
+                error.textContent = message;
+                error.style.display = 'block';
+            }
+        });
+
+        function updateReturnDateOptions() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            
+            if (!startDateInput.value) {
+                endDateInput.value = '';
+                endDateInput.disabled = true;
+                return;
+            }
+
+            const startDate = new Date(startDateInput.value);
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const nextDay = new Date(startDate);
+            nextDay.setDate(startDate.getDate() + 1);
+            const dayAfter = new Date(startDate);
+            dayAfter.setDate(startDate.getDate() + 2);
+
+            // Format dates to YYYY-MM-DD for min/max attributes
+            const nextDayStr = nextDay.toISOString().split('T')[0];
+            const dayAfterStr = dayAfter.toISOString().split('T')[0];
+
+            endDateInput.disabled = false;
+            endDateInput.min = startDateStr; 
+            endDateInput.max = dayAfterStr;
+
+            // If current end date is not within allowed range, clear it
+            if (endDateInput.value) {
+                const endDate = new Date(endDateInput.value);
+                if (endDate < startDate || endDate > dayAfter) {
+                    endDateInput.value = '';
+                }
+            }
+        }
+
         function calculateTotal() {
             const startDate = new Date(document.getElementById('start_date').value);
             const endDate = new Date(document.getElementById('end_date').value);
@@ -516,10 +1393,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const diffTime = Math.abs(endDate - startDate);
                 const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                 const total = (baseRate + driverRate) * days + insurance;
+                
+                // Show the breakdown
+                document.querySelectorAll('.summary-item').forEach(item => {
+                    const label = item.querySelector('span:first-child');
+                    if (label) {
+                        if (label.textContent.includes('Base Rate')) {
+                            item.querySelector('span:last-child').textContent = '₹' + (baseRate * days).toLocaleString() + ' (' + days + ' days)';
+                        } else if (label.textContent.includes('Driver Charges')) {
+                            item.querySelector('span:last-child').textContent = '₹' + (driverRate * days).toLocaleString() + ' (' + days + ' days)';
+                        }
+                    }
+                });
 
                 document.getElementById('total_cost').textContent = '₹' + total.toLocaleString();
+            } else {
+                // Reset the display if dates are invalid
+                document.getElementById('total_cost').textContent = '₹0';
+                document.querySelectorAll('.summary-item').forEach(item => {
+                    const label = item.querySelector('span:first-child');
+                    if (label) {
+                        if (label.textContent.includes('Base Rate')) {
+                            item.querySelector('span:last-child').textContent = '₹<?php echo number_format($car['price']); ?>/day';
+                        } else if (label.textContent.includes('Driver Charges')) {
+                            item.querySelector('span:last-child').textContent = '₹800/day';
+                        }
+                    }
+                });
             }
         }
+
+        // Initialize return date state
+        document.addEventListener('DOMContentLoaded', function() {
+            const endDateInput = document.getElementById('end_date');
+            endDateInput.disabled = true;
+            
+            document.getElementById('start_date').addEventListener('change', function() {
+                updateReturnDateOptions();
+                calculateTotal();
+            });
+
+            document.getElementById('end_date').addEventListener('change', function() {
+                calculateTotal();
+            });
+        });
 
         // Razorpay integration
         <?php if (isset($show_payment) && $show_payment): ?>
@@ -599,6 +1516,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return false;
         };
         <?php endif; ?>
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainContent = document.querySelector('.main-location-content');
+            const homeDeliveryContent = document.querySelector('.home-delivery-content');
+            const backButton = document.querySelector('.back-button');
+            
+            // Show home delivery interface when clicking Home Delivery option
+            document.querySelector('.locations-list').addEventListener('click', function(e) {
+                const locationOption = e.target.closest('.location-option');
+                if (locationOption && locationOption.textContent.includes('Home Delivery')) {
+                    mainContent.style.display = 'none';
+                    homeDeliveryContent.style.display = 'block';
+                }
+            });
+            
+            // Back button returns to main location selection
+            backButton.addEventListener('click', function() {
+                homeDeliveryContent.style.display = 'none';
+                mainContent.style.display = 'block';
+            });
+            
+            // Handle search input
+            const searchInput = document.querySelector('.search-input');
+            searchInput.addEventListener('focus', function() {
+                this.placeholder = '';
+            });
+            
+            searchInput.addEventListener('blur', function() {
+                if (!this.value) {
+                    this.placeholder = 'Search for your area or street';
+                }
+            });
+            
+            // Handle location options
+            document.getElementById('current-location').addEventListener('click', function() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        // Handle the location data
+                        console.log(`Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`);
+                    });
+                }
+            });
+            
+            document.getElementById('map-location').addEventListener('click', function() {
+                // Implement map view functionality
+                console.log('Opening map view');
+            });
+        });
+
+        let map;
+        let marker;
+        const mapLocation = document.getElementById('map-location');
+        const mapPicker = document.getElementById('map-picker');
+        const confirmBtn = document.getElementById('confirm-location');
+        const pickupLocationInput = document.getElementById('pickup_location');
+
+        mapLocation.addEventListener('click', function() {
+            // Hide location options and show map picker
+            document.querySelector('.location-options').style.display = 'none';
+            mapPicker.style.display = 'block';
+            
+            // Initialize map if not already done
+            if (!map) {
+                initializeMap();
+            }
+        });
+
+        function initializeMap() {
+            map = L.map('location-map').setView([20.5937, 78.9629], 5); // Default: India
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            map.on('click', function(e) {
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
+
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+
+                marker = L.marker([lat, lng]).addTo(map)
+                    .bindPopup(`Selected Location<br>Lat: ${lat}, Lng: ${lng}`)
+                    .openPopup();
+
+                document.getElementById("lat").textContent = lat;
+                document.getElementById("lng").textContent = lng;
+                document.getElementById("confirm-location").disabled = false;
+
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let address = data.display_name || "Address not found";
+                        document.getElementById("address").textContent = address;
+                    })
+                    .catch(() => document.getElementById("address").textContent = "Unable to fetch address");
+            });
+        }
+
+        confirmBtn.addEventListener('click', function() {
+            if (marker) {
+                const lat = marker.getLatLng().lat.toFixed(6);
+                const lng = marker.getLatLng().lng.toFixed(6);
+                const address = document.getElementById("address").textContent;
+                
+                // Update pickup location input
+                pickupLocationInput.value = `${address} (${lat}, ${lng})`;
+                
+                // Close the popup
+                const locationPopup = document.querySelector('.location-popup');
+                const popupOverlay = document.querySelector('.popup-overlay');
+                
+                if (locationPopup) locationPopup.style.display = 'none';
+                if (popupOverlay) popupOverlay.style.display = 'none';
+            } else {
+                alert('Please select a location on the map first.');
+            }
+        });
+        
+        // Handle map location button
+        document.getElementById('map-location').addEventListener('click', function() {
+            // Hide location options and show map picker
+            document.querySelector('.location-options').style.display = 'none';
+            document.getElementById('map-picker').style.display = 'block';
+            
+            // Initialize map if not already done
+            if (!map) {
+                initializeMap();
+            }
+        });
+
+        // Back button handler for map picker
+        document.querySelector('.back-button').addEventListener('click', function() {
+            // Hide map picker and show location options
+            document.getElementById('map-picker').style.display = 'none';
+            document.querySelector('.location-options').style.display = 'block';
+        });
+
+        // Function to receive location from map window
+        window.setPickupLocation = function(address, lat, lng) {
+            document.getElementById('pickup_location').value = `${address} (${lat}, ${lng})`;
+        };
     </script>
 </body>
 </html>
