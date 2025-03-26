@@ -4,91 +4,258 @@ session_start();
 
 // Check if user is not logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-    header("Cache-Control: post-check=0, pre-check=0", false);
-    header("Pragma: no-cache");
     header("Location: index.php");
     exit();
 }
+
+// Generate a unique token if not exists
+if (!isset($_SESSION['form_token'])) {
+    $_SESSION['form_token'] = bin2hex(random_bytes(32));
+}
+
 include 'db_connect.php';
 
+// Get active listings count
+$active_listings_query = "SELECT COUNT(*) as active_count FROM cars WHERE is_active = 1";
+$active_result = $conn->query($active_listings_query);
+$active_count = $active_result->fetch_assoc()['active_count'];
+
+// Get total bookings count
+$bookings_query = "SELECT COUNT(*) as booking_count FROM bookings";
+$bookings_result = $conn->query($bookings_query);
+$booking_count = $bookings_result->fetch_assoc()['booking_count'];
+
+// Get all bookings with detailed information
+$all_bookings_query = "SELECT 
+    b.booking_id,
+    b.start_date,
+    b.end_date,
+    b.pickup_time,
+    b.pickup_location,
+    b.center,
+    b.payment_method,
+    b.status as booking_status,
+    u.fullname as user_name,
+    u.email as user_email,
+    u.mobile as user_phone,
+    c.car_name,
+    c.car_features,
+    p.amount,
+    p.status as payment_status,
+    p.payment_id as transaction_id
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN cars c ON b.car_id = c.id
+LEFT JOIN payments p ON b.booking_id = p.booking_id
+ORDER BY b.booking_date DESC";
+
+$all_bookings_result = $conn->query($all_bookings_query);
+
+// Update the earnings query to get total of all payments
+$earnings_query = "SELECT SUM(amount) as total_earnings FROM payments";
+$earnings_result = $conn->query($earnings_query);
+$total_earnings = $earnings_result->fetch_assoc()['total_earnings'] ?? 0;
+
+// Get payment analytics
+$payment_analytics_query = "SELECT 
+    DATE_FORMAT(p.created_at, '%Y-%m') as month,
+    COUNT(DISTINCT p.id) as total_transactions,
+    SUM(p.amount) as monthly_revenue,
+    COUNT(DISTINCT p.user_id) as unique_customers,
+    AVG(p.amount) as average_transaction,
+    p.status,
+    COUNT(DISTINCT b.car_id) as cars_booked
+FROM payments p
+JOIN bookings b ON p.booking_id = b.booking_id
+GROUP BY DATE_FORMAT(p.created_at, '%Y-%m'), p.status
+ORDER BY month DESC
+LIMIT 12";
+
+$payment_analytics = $conn->query($payment_analytics_query);
+
+// Get payment method distribution
+$payment_methods_query = "SELECT 
+    b.payment_method,
+    COUNT(*) as count,
+    SUM(p.amount) as total_amount,
+    AVG(p.amount) as avg_transaction
+FROM bookings b
+JOIN payments p ON b.booking_id = p.booking_id
+GROUP BY b.payment_method";
+
+$payment_methods = $conn->query($payment_methods_query);
+
+// Get top performing cars
+$top_cars_query = "SELECT 
+    c.car_name,
+    COUNT(b.booking_id) as total_bookings,
+    SUM(p.amount) as total_revenue,
+    AVG(p.amount) as avg_booking_value
+FROM cars c
+JOIN bookings b ON c.id = b.car_id
+JOIN payments p ON b.booking_id = p.booking_id
+GROUP BY c.id
+ORDER BY total_revenue DESC
+LIMIT 5";
+
+$top_cars = $conn->query($top_cars_query);
+
+// Get customer insights
+$customer_insights_query = "SELECT 
+    COUNT(DISTINCT u.id) as total_customers,
+    COUNT(DISTINCT CASE WHEN b.status = 'confirmed' THEN u.id END) as active_customers,
+    COUNT(DISTINCT CASE WHEN DATE(u.created_at) = CURDATE() THEN u.id END) as new_customers,
+    ROUND(AVG(p.amount), 2) as avg_customer_spend,
+    COUNT(b.booking_id) / COUNT(DISTINCT u.id) as bookings_per_customer
+FROM users u
+LEFT JOIN bookings b ON u.id = b.user_id
+LEFT JOIN payments p ON b.booking_id = p.booking_id";
+
+$customer_insights = $conn->query($customer_insights_query);
+
+// Get booking trends
+$booking_trends_query = "SELECT 
+    DATE_FORMAT(b.booking_date, '%Y-%m') as month,
+    COUNT(*) as total_bookings,
+    COUNT(DISTINCT b.user_id) as unique_customers,
+    SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_bookings,
+    SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_bookings,
+    AVG(DATEDIFF(b.end_date, b.start_date)) as avg_booking_duration
+FROM bookings b
+GROUP BY DATE_FORMAT(b.booking_date, '%Y-%m')
+ORDER BY month DESC
+LIMIT 6";
+
+$booking_trends = $conn->query($booking_trends_query);
+
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Get form data
-    $car_name = $_POST['car_name'];
-    $description = $_POST['description'];
-    $price = $_POST['price'];
-    $car_type = $_POST['car_type'];
-    $mileage = $_POST['mileage'];
-    $transmission = $_POST['transmission'];
-    $seats = $_POST['seats'];
-    $luggage = $_POST['luggage'];
-    $ac = $_POST['ac'];
-    
-    // Handle file uploads
-    $target_dir = "uploads/cars/";
-    if (!file_exists($target_dir)) {
-        mkdir($target_dir, 0777, true);
-    }
+    // Verify token and check if it's not already used
+    if (isset($_POST['form_token']) && 
+        isset($_SESSION['form_token']) && 
+        $_POST['form_token'] === $_SESSION['form_token'] &&
+        !isset($_SESSION['form_submitted'])) {
+        
+        $_SESSION['form_submitted'] = true; // Mark form as submitted
+        
+        // Get form data
+        $car_name = $_POST['car_name'];
+        $description = $_POST['description'];
+        $price = $_POST['price'];
+        $car_type = $_POST['car_type'];
+        $mileage = $_POST['mileage'];
+        $transmission = $_POST['transmission'];
+        $seats = $_POST['seats'];
+        $luggage = $_POST['luggage'];
+        $ac = $_POST['ac'];
+        
+        // Handle file uploads
+        $target_dir = "uploads/cars/";
+        if (!file_exists($target_dir)) {
+            mkdir($target_dir, 0777, true);
+        }
 
-    // Handle main image
-    $main_image = "";
-    if (isset($_FILES['main_image']) && $_FILES['main_image']['error'] == 0) {
-        $main_image = $target_dir . time() . "_" . basename($_FILES['main_image']['name']);
-        move_uploaded_file($_FILES['main_image']['tmp_name'], $main_image);
-    }
+        // Handle main image
+        $main_image = "";
+        if (isset($_FILES['main_image']) && $_FILES['main_image']['error'] == 0) {
+            $main_image = $target_dir . time() . "_" . basename($_FILES['main_image']['name']);
+            move_uploaded_file($_FILES['main_image']['tmp_name'], $main_image);
+        }
 
-    // Handle thumbnail images
-    $thumbnails = array();
-    if (isset($_FILES['thumbnails'])) {
-        foreach ($_FILES['thumbnails']['tmp_name'] as $key => $tmp_name) {
-            if ($_FILES['thumbnails']['error'][$key] == 0) {
-                $thumbnail_path = $target_dir . time() . "_thumb" . $key . "_" . basename($_FILES['thumbnails']['name'][$key]);
-                if (move_uploaded_file($tmp_name, $thumbnail_path)) {
-                    $thumbnails[] = $thumbnail_path;
+        // Handle thumbnail images
+        $thumbnails = array();
+        if (isset($_FILES['thumbnails'])) {
+            foreach ($_FILES['thumbnails']['tmp_name'] as $key => $tmp_name) {
+                if ($_FILES['thumbnails']['error'][$key] == 0) {
+                    $thumbnail_path = $target_dir . time() . "_thumb" . $key . "_" . basename($_FILES['thumbnails']['name'][$key]);
+                    if (move_uploaded_file($tmp_name, $thumbnail_path)) {
+                        $thumbnails[] = $thumbnail_path;
+                    }
                 }
             }
         }
-    }
 
-    // Convert image paths to JSON
-    $images = [
-        'main_image' => $main_image,
-        'thumbnails' => $thumbnails
-    ];
-    $images_json = json_encode($images);
+        // Handle RC document
+        $rc_document = "";
+        if (isset($_FILES['rc_document']) && $_FILES['rc_document']['error'] == 0) {
+            $rc_document = $target_dir . time() . "_" . basename($_FILES['rc_document']['name']);
+            move_uploaded_file($_FILES['rc_document']['tmp_name'], $rc_document);
+        }
 
-    // Prepare car features
-    $features = [
-        'car_type' => $car_type,
-        'mileage' => $mileage,
-        'transmission' => $transmission,
-        'seats' => $seats,
-        'luggage_capacity' => $luggage,
-        'ac_type' => $ac
-    ];
-    $features_json = json_encode($features);
+        // Convert image paths to JSON
+        $images = [
+            'main_image' => $main_image,
+            'thumbnails' => $thumbnails,
+            'rc_document' => $rc_document
+        ];
+        $images_json = json_encode($images);
 
-    // Insert into database
-    $sql = "INSERT INTO cars (car_name, car_description, car_features, price, images, status, owner_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)";
-    
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssdsi", 
-        $car_name,
-        $description,
-        $features_json,
-        $price,
-        $images_json,
-        $_SESSION['user_id']
-    );
-    
-    if ($stmt->execute()) {
-        echo "<div class='alert success'>Car listing added successfully!</div>";
+        // Prepare car features
+        $features = [
+            'car_type' => $car_type,
+            'mileage' => $mileage,
+            'transmission' => $transmission,
+            'seats' => $seats,
+            'luggage_capacity' => $luggage,
+            'ac_type' => $ac
+        ];
+        $features_json = json_encode($features);
+
+        // Insert into database
+        $sql = "INSERT INTO cars (car_name, car_description, car_features, price, images, status, owner_id) VALUES (?, ?, ?, ?, ?, 'pending', ?)";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssdsi", 
+            $car_name,
+            $description,
+            $features_json,
+            $price,
+            $images_json,
+            $_SESSION['user_id']
+        );
+        
+        if ($stmt->execute()) {
+            $_SESSION['message'] = "Car listing added successfully!";
+            $_SESSION['message_type'] = "success";
+            
+            // Generate new token for next submission
+            $_SESSION['form_token'] = bin2hex(random_bytes(32));
+            unset($_SESSION['form_submitted']);
+            
+            // Redirect to prevent form resubmission
+            header("Location: owner.php?section=cars&status=success");
+            exit();
+        } else {
+            $_SESSION['message'] = "Error: " . $stmt->error;
+            $_SESSION['message_type'] = "error";
+            header("Location: owner.php?section=cars&status=error");
+            exit();
+        }
+        
+        $stmt->close();
     } else {
-        echo "<div class='alert error'>Error: " . $stmt->error . "</div>";
+        // Invalid or reused token
+        $_SESSION['message'] = "Invalid form submission or form already submitted.";
+        $_SESSION['message_type'] = "error";
+        header("Location: owner.php?section=cars&status=invalid");
+        exit();
     }
-    
-    $stmt->close();
-    $conn->close();
+}
+
+// Get message from session if exists
+$message = '';
+$message_type = '';
+if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    $message_type = $_SESSION['message_type'];
+    // Clear the message after displaying
+    unset($_SESSION['message']);
+    unset($_SESSION['message_type']);
+}
+
+// Clear form_submitted flag if we're not on a post-submission page
+if (!isset($_GET['status'])) {
+    unset($_SESSION['form_submitted']);
 }
 ?>
 <!DOCTYPE html>
@@ -484,7 +651,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             right: 0;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             width: 200px;
             opacity: 0;
             visibility: hidden;
@@ -558,6 +725,629 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             animation: slideIn 0.3s ease forwards;
             animation-delay: calc(0.1s * var(--i));
         }
+
+        /* Bookings Section Styles */
+        .bookings-wrapper {
+            padding: 2rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .bookings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .bookings-title {
+            font-size: 2rem;
+            color: #2c3e50;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .bookings-title::after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 4px;
+            background: linear-gradient(90deg, #007bff, #00d2ff);
+            border-radius: 2px;
+        }
+
+        .booking-filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .filter-button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 30px;
+            background: white;
+            color: #495057;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-button.active {
+            background: linear-gradient(90deg, #007bff, #00d2ff);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+        }
+
+        .filter-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .bookings-table-container {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .bookings-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 1000px;
+        }
+
+        .bookings-table th {
+            background: #f8f9fa;
+            padding: 1.2rem 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .bookings-table td {
+            padding: 1.2rem 1rem;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            vertical-align: middle;
+        }
+
+        .bookings-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .bookings-table tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.003);
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .customer-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .customer-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .customer-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .customer-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .customer-contact {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .booking-dates {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .date-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+
+        .date-value {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .amount-cell {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .view-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .edit-btn {
+            background: #6c757d;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .bookings-wrapper {
+                padding: 1rem;
+            }
+
+            .booking-filters {
+                flex-wrap: wrap;
+            }
+
+            .filter-button {
+                width: calc(50% - 0.5rem);
+            }
+        }
+
+        /* Earnings Analytics Styles */
+        .earnings-wrapper {
+            padding: 2rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .earnings-header {
+            margin-bottom: 2rem;
+        }
+
+        .earnings-title {
+            font-size: 2rem;
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .earnings-subtitle {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analytics-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .revenue-icon { background: linear-gradient(135deg, #00b09b, #96c93d); }
+        .customers-icon { background: linear-gradient(135deg, #5f2c82, #49a09d); }
+        .bookings-icon { background: linear-gradient(135deg, #2193b0, #6dd5ed); }
+        .conversion-icon { background: linear-gradient(135deg, #ee0979, #ff6a00); }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0.5rem 0;
+        }
+
+        .card-trend {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .trend-up { color: #28a745; }
+        .trend-down { color: #dc3545; }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            height: 400px;
+        }
+
+        canvas {
+            max-width: 100% !important;
+            max-height: 350px !important;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .payment-method {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .method-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #007bff;
+        }
+
+        .method-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .method-stats {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .top-performers {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .performers-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .performer-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .performer-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .performer-item:hover {
+            transform: translateX(5px);
+            background: #e9ecef;
+        }
+
+        .performer-rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .performer-details {
+            flex: 1;
+        }
+
+        .performer-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .performer-stats {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .performer-revenue {
+            text-align: right;
+        }
+
+        .revenue-amount {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .revenue-count {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        #revenueChart, #bookingChart {
+            width: 100%;
+            height: 300px;
+        }
+
+        /* Auto Parts Styles */
+        .upload-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 0.8rem;
+            background: #f8f9fa;
+            color: #2c3e50;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            border: 1px dashed #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .file-label:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        #file-chosen {
+            margin-left: 1rem;
+            color: #6c757d;
+        }
+
+        .upload-btn {
+            padding: 1rem;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 500;
+        }
+
+        .upload-btn:hover {
+            background: #2980b9;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            margin-top: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header {
+            padding: 1rem 2rem;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header h2 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .product-info {
+            padding: 1rem;
+        }
+
+        .product-info h3 {
+            margin: 0 0 0.5rem;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+
+        .product-brand {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-category {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-price {
+            color: #2ecc71;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-description {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -577,7 +1367,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div id="cars-section" class="hidden">
                 <div class="container">
                     <h2>Add a Car</h2>
-                    <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" enctype="multipart/form-data">
+                    <?php if ($message): ?>
+                        <div class="alert alert-<?php echo $message_type; ?>">
+                            <?php echo htmlspecialchars($message); ?>
+                        </div>
+                    <?php endif; ?>
+                    <form action="owner.php" method="POST" enctype="multipart/form-data" id="carForm">
+                        <input type="hidden" name="form_token" value="<?php echo $_SESSION['form_token']; ?>">
                         <div class="form-group">
                             <label for="car_name">Car Name:</label>
                             <input type="text" id="car_name" name="car_name" required>
@@ -639,41 +1435,186 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <small>Please select exactly 3 thumbnail images</small>
                         </div>
                         
-                        <button type="submit" class="submit-btn">Submit Car Details</button>
+                        <div class="form-group">
+                            <label>Vehicle RC Document:</label>
+                            <input type="file" name="rc_document" accept="application/pdf" class="file-input" required>
+                            <small>Please upload RC document in PDF format only</small>
+                        </div>
+                        
+                        <button type="submit" class="submit-btn" onclick="this.disabled=true; this.form.submit();">Submit Car Details</button>
                     </form>
                 </div>
             </div>
 
-            <div id="parts-section" class="hidden">
-                <div class="header">
-                    <h1>Spare Parts Management</h1>
-                </div>
+            <div id="bookings-section" class="hidden">
+                <div class="bookings-wrapper">
+                    <div class="bookings-header">
+                        <h2 class="bookings-title">Booking Management</h2>
+                        <div class="booking-filters">
+                            <button class="filter-button active">All Bookings</button>
+                            <button class="filter-button">Upcoming</button>
+                            <button class="filter-button">Completed</button>
+                            <button class="filter-button">Cancelled</button>
+                        </div>
+                    </div>
 
-                <div class="parts-form content-section">
-                    <h2>Add New Spare Part</h2>
-                    <form id="addPartForm" class="add-part-form">
-                        <input
-                            type="text"
-                            id="partName"
-                            placeholder="Part Name"
-                            required
-                        />
-                        <input
-                            type="number"
-                            id="partPrice"
-                            placeholder="Price"
-                            required
-                        />
-                        <input type="file" id="partImage" accept="image/*" required />
-                        <button type="submit" class="button">Post Part</button>
+                    <div class="bookings-table-container">
+                        <table class="bookings-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Car Details</th>
+                                    <th>Booking Period</th>
+                                    <th>Payment Info</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                if ($all_bookings_result && $all_bookings_result->num_rows > 0) {
+                                    while($booking = $all_bookings_result->fetch_assoc()): 
+                                        $car_features = json_decode($booking['car_features'], true);
+                                        $first_letter = strtoupper(substr($booking['user_name'], 0, 1));
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <div class="customer-info">
+                                                <div class="customer-avatar"><?php echo $first_letter; ?></div>
+                                                <div class="customer-details">
+                                                    <span class="customer-name"><?php echo htmlspecialchars($booking['user_name']); ?></span>
+                                                    <span class="customer-contact">
+                                                        <?php echo htmlspecialchars($booking['user_email']); ?><br>
+                                                        <?php echo htmlspecialchars($booking['user_phone']); ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($booking['car_name']); ?></strong><br>
+                                            <small><?php echo $car_features['car_type'] ?? 'N/A'; ?></small>
+                                        </td>
+                                        <td>
+                                            <div class="booking-dates">
+                                                <div>
+                                                    <span class="date-label">Start:</span>
+                                                    <span class="date-value"><?php echo date('d M Y', strtotime($booking['start_date'])); ?></span>
+                                                </div>
+                                                <div>
+                                                    <span class="date-label">End:</span>
+                                                    <span class="date-value"><?php echo date('d M Y', strtotime($booking['end_date'])); ?></span>
+                                                </div>
+                                                <div>
+                                                    <span class="date-label">Pickup:</span>
+                                                    <span class="date-value"><?php echo date('h:i A', strtotime($booking['pickup_time'])); ?></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="amount-cell">₹<?php echo number_format($booking['amount'], 2); ?></div>
+                                            <small><?php echo htmlspecialchars($booking['payment_method']); ?></small><br>
+                                            <small class="text-muted"><?php echo $booking['transaction_id'] ?? 'N/A'; ?></small>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-<?php echo strtolower($booking['payment_status'] ?? 'pending'); ?>">
+                                                <?php echo htmlspecialchars($booking['payment_status'] ?? 'Pending'); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="action-btn view-btn" data-id="<?php echo $booking['booking_id']; ?>">
+                                                    <i class="fas fa-eye"></i> View
+                                                </button>
+                                                <button class="action-btn edit-btn" data-id="<?php echo $booking['booking_id']; ?>">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php 
+                                    endwhile;
+                                } else {
+                                ?>
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 2rem;">
+                                            <div style="color: #6c757d;">
+                                                <i class="fas fa-inbox fa-3x"></i>
+                                                <p style="margin-top: 1rem;">No bookings found</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php 
+                                }
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="parts-section" class="hidden">
+                <div class="section-header">
+                    <h2>Auto Parts Management</h2>
+                </div>
+                
+                <div class="upload-container">
+                    <form id="productUploadForm" class="upload-form" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="productTitle">Product Title</label>
+                            <input type="text" id="productTitle" name="productTitle" required placeholder="Enter product name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productBrand">Brand</label>
+                            <select id="productBrand" name="productBrand" required>
+                                <option value="">Select Brand</option>
+                                <option value="Bosch">Bosch(Automotive parts, electronics)</option>
+                                <option value="Continental">Continental(Tires, auto components)</option>
+                                <option value="Bridgestone">Bridgestone (Tires)</option>
+                                <option value="Michelin">Michelin (Tires)</option>
+                                <option value="Goodyear">Goodyear (Tires)</option>
+                                <option value="Denso">Denso (Automotive components)</option>
+                                <option value="Valeo">Valeo (Automotive electronics & lighting)</option>
+                                <option value="Magneti Marelli">Magneti Marelli (Automobile components)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productCategory">Category</label>
+                            <select id="productCategory" name="productCategory" required>
+                                <option value="">Select Category</option>
+                                <option value="engine">Engine Parts</option>
+                                <option value="electrical">Electrical</option>
+                                <option value="fluids">Fluids</option>
+                                <option value="brake">Brake System</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productPrice">Price</label>
+                            <input type="number" id="productPrice" name="productPrice" required min="0" step="0.01" placeholder="Enter product price">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productDescription">Product Description</label>
+                            <textarea id="productDescription" name="productDescription" rows="4" placeholder="Enter product details"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Product Image</label>
+                            <input type="file" id="productImage" name="productImage" class="file-input" accept="image/*" required>
+                            <label for="productImage" class="file-label">
+                                Choose File
+                            </label>
+                            <span id="file-chosen">No file chosen</span>
+                        </div>
+
+                        <button type="submit" class="upload-btn">Upload Product</button>
                     </form>
                 </div>
 
-                <div class="content-section">
-                    <h2>Parts Inventory</h2>
-                    <div id="partsGrid" class="listing-grid">
-                        <!-- Parts will be displayed here -->
-                    </div>
+                <div class="products-grid" id="productsGrid">
+                    <!-- Products will be displayed here -->
                 </div>
             </div>
 
@@ -695,15 +1636,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3>Active Listings</h3>
-                        <div class="value">12</div>
+                        <div class="value"><?php echo $active_count; ?></div>
                     </div>
                     <div class="stat-card">
-                        <h3>Pending Bookings</h3>
-                        <div class="value">5</div>
+                        <h3>Bookings</h3>
+                        <div class="value"><?php echo $booking_count; ?></div>
                     </div>
                     <div class="stat-card">
-                        <h3>Monthly Earnings</h3>
-                        <div class="value">$8,450</div>
+                        <h3>Total Earnings</h3>
+                        <div class="value">₹<?php echo number_format($total_earnings, 2); ?></div>
                     </div>
                     <div class="stat-card">
                         <h3>Total Reviews</h3>
@@ -732,6 +1673,148 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
             </div>
+
+            <div id="earnings-section" class="hidden">
+                <div class="earnings-wrapper">
+                    <div class="earnings-header">
+                        <h2 class="earnings-title">Financial Analytics</h2>
+                        <p class="earnings-subtitle">Comprehensive overview of your business performance</p>
+                    </div>
+
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <div class="card-header">
+                                <div class="card-title">Total Revenue</div>
+                                <div class="card-icon revenue-icon">
+                                    <i class="fas fa-rupee-sign"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">₹<?php echo number_format($total_earnings, 2); ?></div>
+                            <?php 
+                            $monthly_growth = 0;
+                            if ($payment_analytics && $payment_analytics->num_rows > 1) {
+                                $payment_analytics->data_seek(0);
+                                while ($row = $payment_analytics->fetch_assoc()) {
+                                    $months = array();
+                                    $months[$row['month']] = $row['monthly_revenue'];
+                                }
+                                $current_month = array_key_first($months);
+                                $prev_month = array_key_first(array_slice($months, 1, 1, true));
+                                if ($months[$prev_month] > 0) {
+                                    $monthly_growth = (($months[$current_month] - $months[$prev_month]) / $months[$prev_month]) * 100;
+                                }
+                            }
+                            ?>
+                            <div class="card-trend <?php echo $monthly_growth < 0 ? 'trend-down' : 'trend-up'; ?>">
+                                <i class="fas fa-<?php echo $monthly_growth < 0 ? 'arrow-down' : 'arrow-up'; ?>"></i>
+                                <span><?php echo abs(round($monthly_growth, 1)); ?>% from last month</span>
+                            </div>
+                        </div>
+
+                        <?php if ($customer_insights && $row = $customer_insights->fetch_assoc()): ?>
+                        <div class="analytics-card">
+                            <div class="card-header">
+                                <div class="card-title">Customer Base</div>
+                                <div class="card-icon customers-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                            </div>
+                            <div class="card-value"><?php echo $row['total_customers']; ?></div>
+                            <div class="card-trend trend-up">
+                                <i class="fas fa-user-plus"></i>
+                                <span><?php echo $row['new_customers']; ?> new today</span>
+                            </div>
+                        </div>
+
+                        <div class="analytics-card">
+                            <div class="card-header">
+                                <div class="card-title">Average Spend</div>
+                                <div class="card-icon conversion-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <div class="card-value">₹<?php echo number_format($row['avg_customer_spend'], 2); ?></div>
+                            <div class="card-trend">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span><?php echo round($row['bookings_per_customer'], 1); ?> bookings/customer</span>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Revenue Trends</h3>
+                                <div class="chart-legend">
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: #007bff"></div>
+                                        <span>Monthly Revenue</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: #28a745"></div>
+                                        <span>Completed Payments</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Booking Analysis</h3>
+                            </div>
+                            <canvas id="bookingChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="payment-methods">
+                        <?php if ($payment_methods && $payment_methods->num_rows > 0): 
+                            while ($method = $payment_methods->fetch_assoc()): 
+                                $icon_class = 'fa-credit-card';
+                                if (stripos($method['payment_method'], 'upi') !== false) {
+                                    $icon_class = 'fa-mobile-alt';
+                                } elseif (stripos($method['payment_method'], 'net') !== false) {
+                                    $icon_class = 'fa-university';
+                                }
+                        ?>
+                            <div class="payment-method">
+                                <div class="method-icon">
+                                    <i class="fas <?php echo $icon_class; ?>"></i>
+                                </div>
+                                <h4 class="method-name"><?php echo ucfirst($method['payment_method']); ?></h4>
+                                <div class="method-stats">
+                                    <div class="amount">₹<?php echo number_format($method['total_amount'], 2); ?></div>
+                                    <div class="count"><?php echo $method['count']; ?> transactions</div>
+                                    <div class="average">Avg. ₹<?php echo number_format($method['avg_transaction'], 2); ?></div>
+                                </div>
+                            </div>
+                        <?php endwhile; endif; ?>
+                    </div>
+
+                    <div class="top-performers">
+                        <h3 class="performers-title">Top Performing Cars</h3>
+                        <div class="performer-list">
+                            <?php if ($top_cars && $top_cars->num_rows > 0):
+                                $rank = 1;
+                                while ($car = $top_cars->fetch_assoc()): 
+                            ?>
+                                <div class="performer-item">
+                                    <div class="performer-rank"><?php echo $rank++; ?></div>
+                                    <div class="performer-details">
+                                        <div class="performer-name"><?php echo htmlspecialchars($car['car_name']); ?></div>
+                                        <div class="performer-stats"><?php echo $car['total_bookings']; ?> bookings</div>
+                                    </div>
+                                    <div class="performer-revenue">
+                                        <div class="revenue-amount">₹<?php echo number_format($car['total_revenue'], 2); ?></div>
+                                        <div class="revenue-count">Avg. ₹<?php echo number_format($car['avg_booking_value'], 2); ?>/booking</div>
+                                    </div>
+                                </div>
+                            <?php endwhile; endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -745,7 +1828,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 const section = item.dataset.section;
 
                 // Hide all sections
-                document.querySelectorAll("#dashboard-section, #parts-section, #cars-section").forEach((section) => {
+                document.querySelectorAll("#dashboard-section, #parts-section, #cars-section, #bookings-section, #earnings-section").forEach((section) => {
                     section.classList.add("hidden");
                 });
 
@@ -756,6 +1839,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     document.querySelector("#dashboard-section").classList.remove("hidden");
                 } else if (section === "cars") {
                     document.querySelector("#cars-section").classList.remove("hidden");
+                } else if (section === "bookings") {
+                    document.querySelector("#bookings-section").classList.remove("hidden");
+                } else if (section === "earnings") {
+                    document.querySelector("#earnings-section").classList.remove("hidden");
                 }
             });
         });
@@ -831,5 +1918,226 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 e.target.reset();
             });
     </script>
+    <script>
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        <?php
+        $chart_data = array();
+        if ($payment_analytics && $payment_analytics->num_rows > 0) {
+            $payment_analytics->data_seek(0);
+            while ($row = $payment_analytics->fetch_assoc()) {
+                $month = date('M Y', strtotime($row['month'] . '-01'));
+                if (!isset($chart_data[$month])) {
+                    $chart_data[$month] = array(
+                        'revenue' => 0,
+                        'completed' => 0
+                    );
+                }
+                if ($row['status'] == 'completed') {
+                    $chart_data[$month]['completed'] += $row['monthly_revenue'];
+                }
+                $chart_data[$month]['revenue'] += $row['monthly_revenue'];
+            }
+        }
+        ?>
+        new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_keys($chart_data)); ?>,
+                datasets: [{
+                    label: 'Monthly Revenue',
+                    data: <?php echo json_encode(array_column($chart_data, 'revenue')); ?>,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Completed Payments',
+                    data: <?php echo json_encode(array_column($chart_data, 'completed')); ?>,
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Booking Analysis Chart
+        const bookingCtx = document.getElementById('bookingChart').getContext('2d');
+        <?php
+        $booking_data = array();
+        if ($booking_trends && $booking_trends->num_rows > 0) {
+            while ($row = $booking_trends->fetch_assoc()) {
+                $month = date('M Y', strtotime($row['month'] . '-01'));
+                $booking_data[$month] = array(
+                    'confirmed' => $row['confirmed_bookings'],
+                    'cancelled' => $row['cancelled_bookings']
+                );
+            }
+        }
+        ?>
+        new Chart(bookingCtx, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($booking_data)); ?>,
+                datasets: [{
+                    label: 'Confirmed',
+                    data: <?php echo json_encode(array_column($booking_data, 'confirmed')); ?>,
+                    backgroundColor: '#28a745'
+                }, {
+                    label: 'Cancelled',
+                    data: <?php echo json_encode(array_column($booking_data, 'cancelled')); ?>,
+                    backgroundColor: '#dc3545'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    </script>
+    <script>
+        // Prevent form resubmission on page refresh
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+    </script>
+    <script>
+    // Disable form resubmission on refresh
+    window.onload = function() {
+        if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_RELOAD) {
+            document.getElementById('carForm').reset();
+        }
+    };
+
+    // Disable submit button after first click
+    document.getElementById('carForm').addEventListener('submit', function(e) {
+        var submitButton = this.querySelector('button[type="submit"]');
+        if (submitButton.disabled) {
+            e.preventDefault();
+            return false;
+        }
+        submitButton.disabled = true;
+    });
+    </script>
+    <script>
+        // Parts section file input handler
+        const fileInput = document.getElementById('productImage');
+        const fileChosen = document.getElementById('file-chosen');
+
+        if (fileInput && fileChosen) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    fileChosen.textContent = this.files[0].name;
+                } else {
+                    fileChosen.textContent = 'No file chosen';
+                }
+            });
+        }
+
+        // Parts form submission handler
+        const productForm = document.getElementById('productUploadForm');
+        if (productForm) {
+            productForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                // Send the form data to the server
+                fetch('upload_product.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Product uploaded successfully!');
+                        this.reset();
+                        fileChosen.textContent = 'No file chosen';
+                        loadProducts(); // Refresh the products grid
+                    } else {
+                        alert('Error uploading product: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error uploading product. Please try again.');
+                });
+            });
+        }
+
+        // Function to load and display products
+        function loadProducts() {
+            fetch('get_products.php')
+                .then(response => response.json())
+                .then(data => {
+                    const productsGrid = document.getElementById('productsGrid');
+                    if (productsGrid) {
+                        productsGrid.innerHTML = data.products.map(product => `
+                            <div class="product-card">
+                                <img src="${product.image_url}" alt="${product.title}" class="product-image">
+                                <div class="product-info">
+                                    <h3>${product.title}</h3>
+                                    <p class="product-brand">${product.brand}</p>
+                                    <p class="product-category">${product.category}</p>
+                                    <p class="product-price">₹${product.price}</p>
+                                    <p class="product-description">${product.description}</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading products:', error);
+                });
+        }
+
+        // Load products when the parts section becomes visible
+        document.querySelector('[data-section="parts"]').addEventListener('click', function() {
+            setTimeout(loadProducts, 100); // Small delay to ensure the section is visible
+        });
+    </script>
 </body>
 </html>
+<?php $conn->close(); ?>

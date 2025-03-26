@@ -1014,6 +1014,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         line-height: 1.5;
         color: #444;
       }
+
+      /* Table Container Styles */
+      .table-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table-container thead {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .table-container tbody {
+        border-top: 2px solid #eee;
+      }
+
+      /* Custom scrollbar styles */
+      .table-container::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .table-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+
+      .table-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+
+      .table-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
     </style>
   </head>
   <body>
@@ -1231,8 +1278,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                     </div>
                                 </td>
                                 <td>
-                                    <?php if (!empty($car['rc_document'])): ?>
-                                        <a href="<?php echo htmlspecialchars($car['rc_document']); ?>" target="_blank" class="btn btn-info">
+                                    <?php 
+                                    $images = json_decode($car['images'], true);
+                                    if (!empty($images['rc_document'])): ?>
+                                        <a href="<?php echo htmlspecialchars($images['rc_document']); ?>" target="_blank" class="btn btn-info">
                                             <i class="fas fa-file-pdf"></i> View RC Book
                                         </a>
                                     <?php else: ?>
@@ -1679,8 +1728,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                                     </div>
                                 </td>
                                 <td>
-                                    <?php if (!empty($car['rc_document'])): ?>
-                                        <a href="<?php echo htmlspecialchars($car['rc_document']); ?>" target="_blank" class="btn btn-info">
+                                    <?php 
+                                    $images = json_decode($car['images'], true);
+                                    if (!empty($images['rc_document'])): ?>
+                                        <a href="<?php echo htmlspecialchars($images['rc_document']); ?>" target="_blank" class="btn btn-info">
                                             <i class="fas fa-file-pdf"></i> View RC Book
                                         </a>
                                     <?php else: ?>
@@ -2195,6 +2246,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
             margin-bottom: 6px;
             padding: 4px 0;
             border-bottom: 1px solid #eee;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
         }
 
         .feature-list strong {
