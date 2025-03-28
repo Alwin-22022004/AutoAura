@@ -1207,147 +1207,6 @@ if (!isset($_GET['status'])) {
             width: 100%;
             height: 300px;
         }
-
-        /* Auto Parts Styles */
-        .upload-container {
-            max-width: 800px;
-            margin: 20px auto;
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .upload-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .file-label {
-            display: inline-block;
-            padding: 0.8rem;
-            background: #f8f9fa;
-            color: #2c3e50;
-            border-radius: 5px;
-            cursor: pointer;
-            text-align: center;
-            border: 1px dashed #dee2e6;
-            transition: all 0.3s ease;
-        }
-
-        .file-label:hover {
-            background: #e9ecef;
-            border-color: #adb5bd;
-        }
-
-        #file-chosen {
-            margin-left: 1rem;
-            color: #6c757d;
-        }
-
-        .upload-btn {
-            padding: 1rem;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s;
-            font-weight: 500;
-        }
-
-        .upload-btn:hover {
-            background: #2980b9;
-        }
-
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 2rem;
-            padding: 2rem;
-            background: white;
-            border-radius: 10px;
-            margin-top: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .section-header {
-            padding: 1rem 2rem;
-            background: white;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .section-header h2 {
-            color: #2c3e50;
-            margin: 0;
-            font-size: 1.5rem;
-        }
-
-        .product-card {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .product-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-
-        .product-info {
-            padding: 1rem;
-        }
-
-        .product-info h3 {
-            margin: 0 0 0.5rem;
-            color: #2c3e50;
-            font-size: 1.1rem;
-        }
-
-        .product-brand {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .product-category {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .product-price {
-            color: #2ecc71;
-            font-weight: bold;
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .product-description {
-            color: #6c757d;
-            font-size: 0.9rem;
-            margin: 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
     </style>
 </head>
 <body>
@@ -1553,68 +1412,35 @@ if (!isset($_GET['status'])) {
             </div>
 
             <div id="parts-section" class="hidden">
-                <div class="section-header">
-                    <h2>Auto Parts Management</h2>
+                <div class="header">
+                    <h1>Spare Parts Management</h1>
                 </div>
-                
-                <div class="upload-container">
-                    <form id="productUploadForm" class="upload-form" method="POST" enctype="multipart/form-data">
-                        <div class="form-group">
-                            <label for="productTitle">Product Title</label>
-                            <input type="text" id="productTitle" name="productTitle" required placeholder="Enter product name">
-                        </div>
 
-                        <div class="form-group">
-                            <label for="productBrand">Brand</label>
-                            <select id="productBrand" name="productBrand" required>
-                                <option value="">Select Brand</option>
-                                <option value="Bosch">Bosch(Automotive parts, electronics)</option>
-                                <option value="Continental">Continental(Tires, auto components)</option>
-                                <option value="Bridgestone">Bridgestone (Tires)</option>
-                                <option value="Michelin">Michelin (Tires)</option>
-                                <option value="Goodyear">Goodyear (Tires)</option>
-                                <option value="Denso">Denso (Automotive components)</option>
-                                <option value="Valeo">Valeo (Automotive electronics & lighting)</option>
-                                <option value="Magneti Marelli">Magneti Marelli (Automobile components)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="productCategory">Category</label>
-                            <select id="productCategory" name="productCategory" required>
-                                <option value="">Select Category</option>
-                                <option value="engine">Engine Parts</option>
-                                <option value="electrical">Electrical</option>
-                                <option value="fluids">Fluids</option>
-                                <option value="brake">Brake System</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="productPrice">Price</label>
-                            <input type="number" id="productPrice" name="productPrice" required min="0" step="0.01" placeholder="Enter product price">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="productDescription">Product Description</label>
-                            <textarea id="productDescription" name="productDescription" rows="4" placeholder="Enter product details"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Product Image</label>
-                            <input type="file" id="productImage" name="productImage" class="file-input" accept="image/*" required>
-                            <label for="productImage" class="file-label">
-                                Choose File
-                            </label>
-                            <span id="file-chosen">No file chosen</span>
-                        </div>
-
-                        <button type="submit" class="upload-btn">Upload Product</button>
+                <div class="parts-form content-section">
+                    <h2>Add New Spare Part</h2>
+                    <form id="addPartForm" class="add-part-form">
+                        <input
+                            type="text"
+                            id="partName"
+                            placeholder="Part Name"
+                            required
+                        />
+                        <input
+                            type="number"
+                            id="partPrice"
+                            placeholder="Price"
+                            required
+                        />
+                        <input type="file" id="partImage" accept="image/*" required />
+                        <button type="submit" class="button">Post Part</button>
                     </form>
                 </div>
 
-                <div class="products-grid" id="productsGrid">
-                    <!-- Products will be displayed here -->
+                <div class="content-section">
+                    <h2>Parts Inventory</h2>
+                    <div id="partsGrid" class="listing-grid">
+                        <!-- Parts will be displayed here -->
+                    </div>
                 </div>
             </div>
 
@@ -1693,9 +1519,8 @@ if (!isset($_GET['status'])) {
                             <?php 
                             $monthly_growth = 0;
                             if ($payment_analytics && $payment_analytics->num_rows > 1) {
-                                $payment_analytics->data_seek(0);
+                                $months = array();
                                 while ($row = $payment_analytics->fetch_assoc()) {
-                                    $months = array();
                                     $months[$row['month']] = $row['monthly_revenue'];
                                 }
                                 $current_month = array_key_first($months);
@@ -1918,6 +1743,7 @@ if (!isset($_GET['status'])) {
                 e.target.reset();
             });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Revenue Chart
         const revenueCtx = document.getElementById('revenueChart').getContext('2d');
@@ -2060,83 +1886,6 @@ if (!isset($_GET['status'])) {
         }
         submitButton.disabled = true;
     });
-    </script>
-    <script>
-        // Parts section file input handler
-        const fileInput = document.getElementById('productImage');
-        const fileChosen = document.getElementById('file-chosen');
-
-        if (fileInput && fileChosen) {
-            fileInput.addEventListener('change', function() {
-                if (this.files && this.files.length > 0) {
-                    fileChosen.textContent = this.files[0].name;
-                } else {
-                    fileChosen.textContent = 'No file chosen';
-                }
-            });
-        }
-
-        // Parts form submission handler
-        const productForm = document.getElementById('productUploadForm');
-        if (productForm) {
-            productForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const formData = new FormData(this);
-
-                // Send the form data to the server
-                fetch('upload_product.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Product uploaded successfully!');
-                        this.reset();
-                        fileChosen.textContent = 'No file chosen';
-                        loadProducts(); // Refresh the products grid
-                    } else {
-                        alert('Error uploading product: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error uploading product. Please try again.');
-                });
-            });
-        }
-
-        // Function to load and display products
-        function loadProducts() {
-            fetch('get_products.php')
-                .then(response => response.json())
-                .then(data => {
-                    const productsGrid = document.getElementById('productsGrid');
-                    if (productsGrid) {
-                        productsGrid.innerHTML = data.products.map(product => `
-                            <div class="product-card">
-                                <img src="${product.image_url}" alt="${product.title}" class="product-image">
-                                <div class="product-info">
-                                    <h3>${product.title}</h3>
-                                    <p class="product-brand">${product.brand}</p>
-                                    <p class="product-category">${product.category}</p>
-                                    <p class="product-price">₹${product.price}</p>
-                                    <p class="product-description">${product.description}</p>
-                                </div>
-                            </div>
-                        `).join('');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading products:', error);
-                });
-        }
-
-        // Load products when the parts section becomes visible
-        document.querySelector('[data-section="parts"]').addEventListener('click', function() {
-            setTimeout(loadProducts, 100); // Small delay to ensure the section is visible
-        });
     </script>
 </body>
 </html>

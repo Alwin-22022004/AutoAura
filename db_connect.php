@@ -19,9 +19,10 @@ if (!$conn->query($sql)) {
 }
 
 // Select the database
-if (!$conn->select_db($dbname)) {
-    die("Error selecting database: " . $conn->error);
-}
+$conn->select_db($dbname);
+
+// Set charset to utf8mb4
+$conn->set_charset("utf8mb4");
 
 // Create users table with proper storage engine
 $sql = "CREATE TABLE IF NOT EXISTS users (
@@ -40,7 +41,17 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
 if (!$conn->query($sql)) {
-    die("Error creating table: " . $conn->error);
+    die("Error creating users table: " . $conn->error);
+}
+
+// Add is_active column if it doesn't exist
+$check_column = "SHOW COLUMNS FROM users LIKE 'is_active'";
+$result = $conn->query($check_column);
+if ($result->num_rows === 0) {
+    $add_column = "ALTER TABLE users ADD COLUMN is_active TINYINT(1) DEFAULT 1";
+    if (!$conn->query($add_column)) {
+        die("Error adding is_active column: " . $conn->error);
+    }
 }
 
 // Create reviews table

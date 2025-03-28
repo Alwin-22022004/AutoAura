@@ -204,7 +204,29 @@ $result = $conn->query($sql);
             width: 100%;
             height: 200px;
             object-fit: cover;
-            transition: transform 0.5s ease;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .car-image-container {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .car-image-container:hover .car-image {
+            transform: scale(1.05);
+        }
+
+        .car-image-container:hover::after {
+            content: 'View Details';
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
         }
 
         .car-card:hover .car-image {
@@ -518,7 +540,9 @@ $result = $conn->query($sql);
                     ?>
                     <div class="car-card" style="--delay: <?php echo $delay; ?>" 
                          data-car-type="<?php echo htmlspecialchars($features['car_type'] ?? ''); ?>">
-                        <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="car-image">
+                        <div class="car-image-container" onclick="window.location.href='car-details.php?id=<?php echo $car['id']; ?>'">
+                            <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="car-image">
+                        </div>
                         <div class="car-details">
                             <h3 class="car-title"><?php echo htmlspecialchars($car['car_name']); ?></h3>
                             <div class="car-specs">

@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'db_connect.php';
+require_once 'includes/send_mail.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -27,6 +28,24 @@ if ($result->num_rows === 0) {
 }
 
 $booking = $result->fetch_assoc();
+
+// Check if status is confirmed and email hasn't been sent
+if ($booking['status'] === 'confirmed') {
+    // Send confirmation email
+    $emailSent = sendBookingConfirmationEmail(
+        $booking['email'],
+        $booking['user_name'],
+        $booking['car_name'],
+        $booking['start_date'],
+        $booking['end_date'],
+        $booking_id
+    );
+    
+    if (!$emailSent) {
+        error_log("Failed to send confirmation email for booking ID: $booking_id");
+    }
+}
+
 $images = json_decode($booking['images'], true);
 $features = json_decode($booking['car_features'], true);
 
@@ -319,6 +338,11 @@ $current_status = $status_messages[$booking['status']] ?? $status_messages['pend
                 Booking Status: <?php echo ucfirst($booking['status']); ?> | 
                 Payment Status: <?php echo ucfirst($booking['payment_status']); ?>
             </p>
+            <?php if ($booking['status'] === 'confirmed'): ?>
+                <p style="margin-top: 15px; color: #155724;">
+                    <i class="fas fa-envelope"></i> A booking confirmation email has been sent to <?php echo htmlspecialchars($booking['email']); ?>
+                </p>
+            <?php endif; ?>
         </div>
 
         <div class="booking-details">

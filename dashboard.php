@@ -285,7 +285,7 @@ if (!isset($_SESSION['user_id'])) {
           <li><a href="#rent">Rent</a></li>
           <li><a href="#ride">Ride</a></li>
           <li><a href="#about-us">About us</a></li>
-          <li><a href="#spare">Spare</a></li>
+          <li><a href="spare-parts-store.php">Spare</a></li>
           <li><a href="#workshops">Workshops</a></li>
         </ul>
 

@@ -2,6 +2,54 @@
 session_start();
 require_once 'db_connect.php';
 
+// Handle Google login
+if (isset($_POST['google_login'])) {
+    $google_email = filter_var(trim($_POST['google_email']), FILTER_VALIDATE_EMAIL);
+    $google_name = trim($_POST['google_name']);
+    
+    if (!$google_email) {
+        $_SESSION['error'] = "Invalid Google email.";
+        header("Location: auth-page.php");
+        exit();
+    }
+
+    // Check if user exists
+    $stmt = $conn->prepare("SELECT id, fullname, mobile, verification_doc FROM users WHERE email = ?");
+    $stmt->bind_param("s", $google_email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 0) {
+        // Create new user
+        $stmt = $conn->prepare("INSERT INTO users (email, fullname, auth_type) VALUES (?, ?, 'google')");
+        $stmt->bind_param("ss", $google_email, $google_name);
+        $stmt->execute();
+        $user_id = $conn->insert_id;
+        
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['user_name'] = $google_name;
+        $_SESSION['is_admin'] = false;
+        
+        // Redirect to profile completion
+        header("Location: user-profile.php?complete_profile=1");
+        exit();
+    } else {
+        // Existing user
+        $user = $result->fetch_assoc();
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user_name'] = $user['fullname'];
+        $_SESSION['is_admin'] = false;
+        
+        // Check if profile is complete
+        if (empty($user['mobile']) || empty($user['verification_doc'])) {
+            header("Location: user-profile.php?complete_profile=1");
+        } else {
+            header("Location: dashboard.php");
+        }
+        exit();
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         // Sanitize and validate input
