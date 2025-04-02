@@ -1,10 +1,26 @@
 <?php
 session_start();
+require_once 'db_connect.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth-page.php");
     exit();
+}
+
+// Check if user is blocked
+if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== 'admin' && $_SESSION['user_id'] !== 'owner') {
+    $stmt = $conn->prepare("SELECT active FROM users WHERE id = ?");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    
+    if ($user && $user['active'] === 'blocked') {
+        session_destroy();
+        header("Location: auth-page.php?error=blocked");
+        exit();
+    }
 }
 ?>
 
@@ -13,6 +29,8 @@ if (!isset($_SESSION['user_id'])) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
@@ -101,6 +119,10 @@ if (!isset($_SESSION['user_id'])) {
             overflow-x: hidden;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             display: flex;
             flex-direction: column;
@@ -146,6 +168,10 @@ if (!isset($_SESSION['user_id'])) {
             padding: 4rem 1rem;
         }
 
+        .story__container {
+            scroll-margin-top: 80px;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .section__container {
@@ -158,8 +184,104 @@ if (!isset($_SESSION['user_id'])) {
             }
         }
     </style>
+    <style>
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 9999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                overflow: auto;
+            }
+            .modal-content {
+                background-color: #fff;
+                margin: 15% auto;
+                padding: 30px;
+                border-radius: 8px;
+                width: 90%;
+                max-width: 500px;
+                position: relative;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .rating {
+                text-align: center;
+                margin: 20px 0;
+                direction: rtl;
+            }
+            .rating .fa-star {
+                color: #ddd;
+                font-size: 30px;
+                cursor: pointer;
+                margin: 0 5px;
+                transition: color 0.2s ease;
+            }
+            .rating .fa-star:hover,
+            .rating .fa-star:hover ~ .fa-star,
+            .rating .fa-star.active {
+                color: #ffd700;
+            }
+            #reviewText {
+                width: 100%;
+                padding: 12px;
+                margin: 15px 0;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                resize: vertical;
+                min-height: 100px;
+                font-size: 14px;
+            }
+            .modal-buttons {
+                text-align: right;
+                margin-top: 20px;
+            }
+            .modal-buttons button {
+                padding: 8px 20px;
+                margin-left: 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            .btn-secondary {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+            }
+            .btn-primary {
+                background-color: #007bff;
+                color: white;
+                border: none;
+            }
+            .modal h2 {
+                text-align: center;
+                color: #333;
+                margin-bottom: 20px;
+            }
+        </style>
   </head>
   <body>
+    <!-- Add feedback modal -->
+    <div id="feedbackModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Share Your Experience</h2>
+            <div class="rating">
+                <i class="fas fa-star" data-rating="1"></i>
+                <i class="fas fa-star" data-rating="2"></i>
+                <i class="fas fa-star" data-rating="3"></i>
+                <i class="fas fa-star" data-rating="4"></i>
+                <i class="fas fa-star" data-rating="5"></i>
+            </div>
+            <textarea id="reviewText" placeholder="Write your review here..." rows="4"></textarea>
+            <input type="hidden" id="bookingId">
+            <input type="hidden" id="carId">
+            <div class="modal-buttons">
+                <button id="skipFeedback" class="btn btn-secondary">Skip</button>
+                <button id="submitFeedback" class="btn btn-primary">Submit</button>
+            </div>
+        </div>
+    </div>
     <header>
       <nav>
         <div class="nav__header">
@@ -178,8 +300,8 @@ if (!isset($_SESSION['user_id'])) {
           <li><a href="#home">Home</a></li>
           <li><a href="#rent">Rent</a></li>
           <li><a href="#ride">Ride</a></li>
-          <li><a href="#contact">Reviews</a></li>
-          <li><a href="#spare">Spare</a></li>
+          <li><a href="#about-us">About us</a></li>
+          <li><a href="spare-parts-store.php">Spare</a></li>
           <li><a href="#workshops">Workshops</a></li>
         </ul>
 
@@ -215,41 +337,10 @@ if (!isset($_SESSION['user_id'])) {
       <br>
       <div class="header__container" id="home">
         <h1>PREMIUM CAR RENTAL</h1>
-        <form action="/">
-          <div class="input__group">
-            <label for="location">Pick up & Return location</label>
-            <input
-              type="text"
-              name="location"
-              id="location"
-              placeholder="Dallas, Texas"
-            />
-          </div>
-          <div class="input__group">
-            <label for="start">Start</label>
-            <input
-              type="text"
-              name="start"
-              id="start"
-              placeholder="Aug 16, 10:00 AM"
-            />
-          </div>
-          <div class="input__group">
-            <label for="stop">Stop</label>
-            <input
-              type="text"
-              name="stop"
-              id="stop"
-              placeholder="Aug 18, 10:00 PM"
-            />
-          </div>
-          <button class="btn">
-            <i class="ri-search-line"></i>
-          </button>
-        </form>
+        <br><br>
         <img src="assets/header.png" alt="header" />
       </div>
-      <a href="#about" class="scroll__down">
+      <a href="#about-us" class="scroll__down">
         <i class="ri-arrow-down-line"></i>
       </a>
     </header>
@@ -461,7 +552,7 @@ if (!isset($_SESSION['user_id'])) {
             </div>
         </section>
 
-        <section class="story__container" id="story">
+        <section class="story__container" id="about-us">
             <h2 class="section__header">STORIES BEHIND THE WHEEL</h2>
             <div class="story__grid">
                 <div class="story__card">
@@ -528,407 +619,7 @@ if (!isset($_SESSION['user_id'])) {
             </div>
         </section>
 
-        <section class="feedback-section" id="contact">
-            <div class="feedback-container">
-                <div class="feedback-header">
-                    <h2>Share Your Experience</h2>
-                    <p>Your feedback helps us improve and provide better service to our community.</p>
-                </div>
-                
-                <div class="feedback-grid">
-                    <div class="feedback-box">
-                        <div class="rating-container">
-                            <div class="stars">
-                                <i class="star fas fa-star" data-rating="1"></i>
-                                <i class="star fas fa-star" data-rating="2"></i>
-                                <i class="star fas fa-star" data-rating="3"></i>
-                                <i class="star fas fa-star" data-rating="4"></i>
-                                <i class="star fas fa-star" data-rating="5"></i>
-                            </div>
-                        </div>
-                        
-                        <form class="feedback-form" id="feedbackForm">
-                            <textarea 
-                                id="reviewText"
-                                placeholder="Tell us about your experience with our service..."
-                                maxlength="500"
-                            ></textarea>
-                            
-                            <div class="feedback-actions">
-                                <span class="char-count">0/500 characters</span>
-                                <button type="submit" class="post-btn" disabled>
-                                    Post Review
-                                    <i class="fas fa-arrow-right"></i>
-                                </button>
-                            </div>
-                        </form>
-                        
-                        <div class="success-message">
-                            Thank you! Your feedback has been submitted successfully.
-                        </div>
-                    </div>
-
-                    <!-- Reviews Display Section -->
-                    <div class="reviews-container">
-                        <h3>Recent Reviews</h3>
-                        <div id="reviewsList" class="reviews-list">
-                            <!-- Reviews will be loaded here dynamically -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <style>
-                .feedback-section {
-                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                    padding: 4rem 0;
-                    position: relative;
-                    overflow: hidden;
-                }
-
-                .feedback-section::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    height: 4px;
-                    background: linear-gradient(90deg, #f5b754, #f8d094, #f5b754);
-                    animation: shimmer 2s infinite linear;
-                }
-
-                @keyframes shimmer {
-                    0% { background-position: -200% 0; }
-                    100% { background-position: 200% 0; }
-                }
-
-                .feedback-container {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 0 20px;
-                }
-
-                .feedback-header {
-                    text-align: center;
-                    margin-bottom: 3rem;
-                }
-
-                .feedback-header h2 {
-                    font-size: 2.5rem;
-                    color: #2c3e50;
-                    margin-bottom: 1rem;
-                    font-weight: 600;
-                }
-
-                .feedback-header p {
-                    color: #666;
-                    font-size: 1.1rem;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }
-
-                .feedback-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                    gap: 2rem;
-                    margin-bottom: 3rem;
-                }
-
-                .feedback-box {
-                    background: white;
-                    border-radius: 15px;
-                    padding: 2rem;
-                    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-                    transition: transform 0.3s ease;
-                }
-
-                .feedback-box:hover {
-                    transform: translateY(-5px);
-                }
-
-                .rating-container {
-                    margin-bottom: 1.5rem;
-                }
-
-                .stars {
-                    display: flex;
-                    gap: 5px;
-                    font-size: 1.8rem;
-                }
-
-                .star {
-                    color: #ddd;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                }
-
-                .star:hover {
-                    transform: scale(1.2);
-                }
-
-                .star.active {
-                    color: #f5b754;
-                }
-
-                .feedback-form textarea {
-                    width: 100%;
-                    min-height: 120px;
-                    padding: 1rem;
-                    border: 2px solid #eee;
-                    border-radius: 10px;
-                    margin-bottom: 1rem;
-                    resize: vertical;
-                    font-family: inherit;
-                    font-size: 1rem;
-                    transition: border-color 0.3s ease;
-                }
-
-                .feedback-form textarea:focus {
-                    outline: none;
-                    border-color: #f5b754;
-                }
-
-                .feedback-actions {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-
-                .char-count {
-                    color: #666;
-                    font-size: 0.9rem;
-                }
-
-                .post-btn {
-                    background: #f5b754;
-                    color: white;
-                    border: none;
-                    padding: 0.8rem 2rem;
-                    border-radius: 25px;
-                    font-size: 1rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .post-btn:hover {
-                    background: #e4a643;
-                    transform: translateX(5px);
-                }
-
-                .post-btn:disabled {
-                    background: #ccc;
-                    cursor: not-allowed;
-                    transform: none;
-                }
-
-                .post-btn i {
-                    transition: transform 0.3s ease;
-                }
-
-                .post-btn:hover i {
-                    transform: translateX(5px);
-                }
-
-                .success-message {
-                    display: none;
-                    text-align: center;
-                    padding: 1rem;
-                    background: #4CAF50;
-                    color: white;
-                    border-radius: 10px;
-                    margin-top: 1rem;
-                }
-
-                .reviews-container {
-                    margin-top: 3rem;
-                }
-
-                .reviews-container h3 {
-                    color: #2c3e50;
-                    margin-bottom: 1.5rem;
-                    text-align: center;
-                }
-
-                .reviews-list {
-                    display: grid;
-                    gap: 1.5rem;
-                    max-width: 800px;
-                    margin: 0 auto;
-                }
-
-                .review-item {
-                    background: white;
-                    border-radius: 10px;
-                    padding: 1.5rem;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-                }
-
-                .review-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 1rem;
-                }
-
-                .review-user {
-                    font-weight: 600;
-                    color: #2c3e50;
-                }
-
-                .review-date {
-                    color: #666;
-                    font-size: 0.9rem;
-                }
-
-                .review-rating {
-                    color: #f5b754;
-                    margin-bottom: 0.5rem;
-                }
-
-                .review-text {
-                    color: #444;
-                    line-height: 1.6;
-                }
-
-                @media (max-width: 768px) {
-                    .feedback-header h2 {
-                        font-size: 2rem;
-                    }
-                    
-                    .feedback-grid {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .feedback-box {
-                        padding: 1.5rem;
-                    }
-                }
-            </style>
-
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const stars = document.querySelectorAll('.star');
-                    const textarea = document.querySelector('#reviewText');
-                    const charCount = document.querySelector('.char-count');
-                    const submitBtn = document.querySelector('.post-btn');
-                    const form = document.querySelector('.feedback-form');
-                    const successMessage = document.querySelector('.success-message');
-                    const reviewsList = document.querySelector('#reviewsList');
-                    let rating = 0;
-
-                    // Star rating functionality
-                    stars.forEach(star => {
-                        star.addEventListener('mouseover', function() {
-                            const rating = this.dataset.rating;
-                            highlightStars(rating);
-                        });
-
-                        star.addEventListener('mouseout', function() {
-                            highlightStars(rating);
-                        });
-
-                        star.addEventListener('click', function() {
-                            rating = this.dataset.rating;
-                            highlightStars(rating);
-                            validateForm();
-                        });
-                    });
-
-                    function highlightStars(rating) {
-                        stars.forEach(star => {
-                            const starRating = star.dataset.rating;
-                            star.classList.toggle('active', starRating <= rating);
-                        });
-                    }
-
-                    // Character count and form validation
-                    textarea.addEventListener('input', function() {
-                        const length = this.value.length;
-                        charCount.textContent = `${length}/500 characters`;
-                        validateForm();
-                    });
-
-                    function validateForm() {
-                        submitBtn.disabled = !(rating > 0 && textarea.value.trim().length > 0);
-                    }
-
-                    // Load existing reviews
-                    function loadReviews() {
-                        fetch('get_reviews.php')
-                            .then(response => response.json())
-                            .then(reviews => {
-                                reviewsList.innerHTML = reviews.map(review => `
-                                    <div class="review-item">
-                                        <div class="review-header">
-                                            <span class="review-user">${review.fullname}</span>
-                                            <span class="review-date">${new Date(review.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                        <div class="review-rating">
-                                            ${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}
-                                        </div>
-                                        <div class="review-text">${review.review_text}</div>
-                                    </div>
-                                `).join('');
-                            })
-                            .catch(error => console.error('Error loading reviews:', error));
-                    }
-
-                    // Load reviews on page load
-                    loadReviews();
-
-                    // Form submission
-                    form.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
-
-                        // Submit review to server
-                        fetch('submit_review.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                rating: rating,
-                                review: textarea.value.trim()
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                form.style.display = 'none';
-                                successMessage.style.display = 'block';
-                                
-                                // Reset form and reload reviews after 3 seconds
-                                setTimeout(() => {
-                                    form.reset();
-                                    form.style.display = 'block';
-                                    successMessage.style.display = 'none';
-                                    rating = 0;
-                                    highlightStars(0);
-                                    submitBtn.innerHTML = 'Post Review <i class="fas fa-arrow-right"></i>';
-                                    charCount.textContent = '0/500 characters';
-                                    validateForm();
-                                    loadReviews(); // Reload the reviews
-                                }, 3000);
-                            } else {
-                                throw new Error(data.error || 'Failed to submit review');
-                            }
-                        })
-                        .catch(error => {
-                            alert('Error submitting review: ' + error.message);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = 'Post Review <i class="fas fa-arrow-right"></i>';
-                        });
-                    });
-                });
-            </script>
-        </section>
+        
 
         <script>
             // User dropdown functionality
@@ -1038,5 +729,113 @@ if (!isset($_SESSION['user_id'])) {
         });
     </script>
     <script src="dash.js"></script>
+    <script>
+    $(document).ready(function() {
+        // Check for pending feedback
+        function checkPendingFeedback() {
+            console.log('Checking for pending feedback...');
+            $.ajax({
+                url: 'check_feedback.php',
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Feedback check response:', response);
+                    if (response.showFeedback) {
+                        $('#bookingId').val(response.bookingId);
+                        $('#carId').val(response.carId);
+                        $('#feedbackModal').show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error checking feedback:', error);
+                    console.error('Response:', xhr.responseText);
+                }
+            });
+        }
+
+        // Initialize rating system
+        let selectedRating = 0;
+        $('.rating .fa-star').on('click', function() {
+            console.log('Star clicked:', $(this).data('rating'));
+            selectedRating = $(this).data('rating');
+            $('.rating .fa-star').removeClass('active');
+            $(this).prevAll('.fa-star').addBack().addClass('active');
+        });
+
+        // Handle skip button
+        $('#skipFeedback').click(function() {
+            const bookingId = $('#bookingId').val();
+            console.log('Skipping feedback for booking:', bookingId);
+            $.ajax({
+                url: 'update_feedback.php',
+                method: 'POST',
+                data: {
+                    bookingId: bookingId,
+                    action: 'skip'
+                },
+                success: function(response) {
+                    console.log('Skip feedback response:', response);
+                    $('#feedbackModal').hide();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error skipping feedback:', error);
+                    alert('Failed to skip feedback. Please try again.');
+                }
+            });
+        });
+
+        // Handle submit button
+        $('#submitFeedback').click(function() {
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+
+            const bookingId = $('#bookingId').val();
+            const carId = $('#carId').val();
+            const reviewText = $('#reviewText').val().trim();
+            
+            if (!reviewText) {
+                alert('Please write your review');
+                return;
+            }
+
+            console.log('Submitting feedback:', {
+                bookingId,
+                carId,
+                rating: selectedRating,
+                reviewText
+            });
+
+            $.ajax({
+                url: 'update_feedback.php',
+                method: 'POST',
+                data: {
+                    bookingId: bookingId,
+                    carId: carId,
+                    rating: selectedRating,
+                    reviewText: reviewText,
+                    action: 'submit'
+                },
+                success: function(response) {
+                    console.log('Submit feedback response:', response);
+                    $('#feedbackModal').hide();
+                    // Reset form
+                    selectedRating = 0;
+                    $('.rating .fa-star').removeClass('active');
+                    $('#reviewText').val('');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error submitting feedback:', error);
+                    alert('Failed to submit feedback. Please try again.');
+                }
+            });
+        });
+
+        // Check for pending feedback on page load
+        console.log('Document ready, checking for feedback...');
+        checkPendingFeedback();
+    });
+    </script>
   </body>
 </html>

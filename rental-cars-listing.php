@@ -78,63 +78,98 @@ $result = $conn->query($sql);
             color: #666;
         }
 
-        .main-container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 2rem;
+        .main-content {
+            display: flex;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .filters {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-            opacity: 0;
-            transform: translateX(-20px);
-            animation: slideInLeft 0.5s ease forwards;
+        .filters-container {
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            padding-right: 15px;
+            scrollbar-width: thin;
+            width: 250px;
+            flex-shrink: 0;
         }
 
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        .filters-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .filters-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .filters-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .filters-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
 
         .filter-section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 250px;
         }
 
-        .filter-section h3 {
-            margin-bottom: 1rem;
+        .filter-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
             color: #333;
-            font-size: 1.1rem;
         }
 
         .filter-options {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 8px;
         }
 
-        .filter-option {
+        .filter-checkbox {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 8px;
+        }
+
+        .filter-checkbox input[type="checkbox"] {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .filter-checkbox label {
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .filter-checkbox:hover label {
+            color: #000;
         }
 
         .cars-grid {
+            flex: 1;
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
+            gap: 20px;
+            align-content: start;
         }
 
         .car-card {
@@ -169,7 +204,29 @@ $result = $conn->query($sql);
             width: 100%;
             height: 200px;
             object-fit: cover;
-            transition: transform 0.5s ease;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .car-image-container {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .car-image-container:hover .car-image {
+            transform: scale(1.05);
+        }
+
+        .car-image-container:hover::after {
+            content: 'View Details';
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
         }
 
         .car-card:hover .car-image {
@@ -252,12 +309,93 @@ $result = $conn->query($sql);
             transform: translateY(-2px);
         }
 
+        .price-range {
+            margin-top: 10px;
+        }
+
+        .price-input {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .price-input label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .price-input input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .price-input input:focus {
+            outline: none;
+            border-color: #f5b754;
+            box-shadow: 0 0 0 2px rgba(245, 183, 84, 0.1);
+            background: #fff;
+        }
+
+        .price-input::before {
+            content: "₹";
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .price-input input {
+            padding-left: 24px;
+        }
+
+        .clear-filters {
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .clear-filters:hover {
+            background: #f5b754;
+            border-color: #f5b754;
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(245, 183, 84, 0.2);
+        }
+
+        .clear-filters:active {
+            transform: translateY(0);
+        }
+
+        .clear-filters i {
+            font-size: 16px;
+        }
+
         @media (max-width: 768px) {
-            .main-container {
-                grid-template-columns: 1fr;
+            .main-content {
+                flex-direction: column;
             }
 
-            .filters {
+            .filters-container {
                 position: fixed;
                 bottom: 0;
                 left: 0;
@@ -269,7 +407,7 @@ $result = $conn->query($sql);
                 transition: transform 0.3s ease;
             }
 
-            .filters.active {
+            .filters-container.active {
                 transform: translateY(0);
             }
 
@@ -291,8 +429,10 @@ $result = $conn->query($sql);
 <body>
     <header>
         <div class="header-content">
-            <div class="logo">
-                <img src="assets/Grey_and_Black_Car_Rental_Service_Logo-removebg-preview.png" alt="LUXE DRIVE" style="height: 50px;">
+            <div class="logo" style="margin-left: -100px;">
+                <a href="dashboard.php">
+                    <img src="assets/Grey_and_Black_Car_Rental_Service_Logo-removebg-preview.png" alt="LUXE DRIVE" style="height: 50px;">
+                </a>
             </div>
             <div class="search-bar">
                 <i class="fas fa-search"></i>
@@ -301,44 +441,108 @@ $result = $conn->query($sql);
         </div>
     </header>
 
-    <div class="main-container">
-        <div class="filters">
+    <div class="main-content">
+        <div class="filters-container">
             <div class="filter-section">
-                <h3>Car Type</h3>
-                <div class="filter-options" id="carTypeFilters">
-                    <!-- Car types will be dynamically added here -->
-                </div>
-            </div>
-
-            <div class="filter-section">
-                <h3>Price Range</h3>
-                <div class="range-filter">
-                    <input type="range" min="10000" max="20000" value="500" id="priceRange">
-                    <div class="price-inputs">
-                        <input type="number" placeholder="Min" id="minPrice">
-                        <input type="number" placeholder="Max" id="maxPrice">
+                <h3 class="filter-title">Transmission</h3>
+                <div class="filter-options">
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="automatic" value="automatic">
+                        <label for="automatic">Automatic</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="manual" value="manual">
+                        <label for="manual">Manual</label>
                     </div>
                 </div>
             </div>
 
             <div class="filter-section">
-                <h3>Features</h3>
-                <div class="filter-options" id="featureFilters">
-                    <!-- Features will be dynamically added here -->
+                <h3 class="filter-title">Car Type</h3>
+                <div class="filter-options">
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="sedan" value="sedan">
+                        <label for="sedan">Sedan</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="suv" value="suv">
+                        <label for="suv">SUV</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="hatchback" value="hatchback">
+                        <label for="hatchback">Hatchback</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="luxury" value="luxury">
+                        <label for="luxury">Luxury</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="muv" value="muv">
+                        <label for="muv">MUV</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="sports" value="sports">
+                        <label for="sports">Sports</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="electric" value="electric">
+                        <label for="electric">Electric</label>
+                    </div>
                 </div>
             </div>
+
+            <div class="filter-section">
+                <h3 class="filter-title">Seating Capacity</h3>
+                <div class="filter-options">
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="seats-4" value="4">
+                        <label for="seats-4">4 Seater</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="seats-5" value="5">
+                        <label for="seats-5">5 Seater</label>
+                    </div>
+                    <div class="filter-checkbox">
+                        <input type="checkbox" id="seats-7" value="7">
+                        <label for="seats-7">7 Seater</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h3 class="filter-title">Price Range</h3>
+                <div class="price-range">
+                    <div class="price-input">
+                        <label for="minPrice">Minimum Price</label>
+                        <input type="number" id="minPrice" placeholder="0" min="0">
+                    </div>
+                    <div class="price-input">
+                        <label for="maxPrice">Maximum Price</label>
+                        <input type="number" id="maxPrice" placeholder="Any" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <button class="clear-filters" onclick="clearFilters()">
+                <i class="fas fa-undo-alt"></i>
+                Clear All Filters
+            </button>
         </div>
 
         <div class="cars-grid" id="carsGrid">
             <?php
             if ($result && $result->num_rows > 0) {
+                $delay = 0;
                 while ($car = $result->fetch_assoc()) {
                     $features = json_decode($car['car_features'], true);
                     $images = json_decode($car['images'], true);
                     $mainImage = !empty($images['main_image']) ? $images['main_image'] : 'assets/default-car.jpg';
                     ?>
-                    <div class="car-card" data-car-type="<?php echo htmlspecialchars($features['car_type']); ?>">
-                        <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="car-image">
+                    <div class="car-card" style="--delay: <?php echo $delay; ?>" 
+                         data-car-type="<?php echo htmlspecialchars($features['car_type'] ?? ''); ?>">
+                        <div class="car-image-container" onclick="window.location.href='car-details.php?id=<?php echo $car['id']; ?>'">
+                            <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>" class="car-image">
+                        </div>
                         <div class="car-details">
                             <h3 class="car-title"><?php echo htmlspecialchars($car['car_name']); ?></h3>
                             <div class="car-specs">
@@ -365,6 +569,7 @@ $result = $conn->query($sql);
                             </div>
                         </div>
                     </div>
+                    <?php $delay++; ?>
                     <?php
                 }
             } else {
@@ -373,8 +578,6 @@ $result = $conn->query($sql);
             ?>
         </div>
     </div>
-
-   
 
     <script>
     function rentCar(carId) {
@@ -439,37 +642,72 @@ $result = $conn->query($sql);
 
     document.getElementById('searchInput').addEventListener('input', searchCars);
 
-    // Enhanced price filter with smooth transitions
-    function applyPriceFilter() {
+    // Filter functionality
+    function applyFilters() {
+        const cars = document.querySelectorAll('.car-card');
         const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
         const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
-        const cars = document.querySelectorAll('.car-card');
         
+        // Get selected transmission types
+        const selectedTransmission = Array.from(document.querySelectorAll('input[type="checkbox"][id^="automatic"], input[type="checkbox"][id^="manual"]'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        // Get selected car types
+        const selectedCarTypes = Array.from(document.querySelectorAll('input[type="checkbox"][id^="sedan"], input[type="checkbox"][id^="suv"], input[type="checkbox"][id^="hatchback"], input[type="checkbox"][id^="luxury"], input[type="checkbox"][id^="muv"], input[type="checkbox"][id^="sports"], input[type="checkbox"][id^="electric"]'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        // Get selected seating capacity
+        const selectedSeats = Array.from(document.querySelectorAll('input[type="checkbox"][id^="seats-"]'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
         cars.forEach(car => {
             const price = parseFloat(car.querySelector('.price').textContent.replace(/[^\d.]/g, ''));
-            if (price >= minPrice && price <= maxPrice) {
+            const transmission = car.querySelector('.spec:nth-child(2)').textContent.toLowerCase();
+            const seats = car.querySelector('.spec:nth-child(1)').textContent.trim();
+            const carType = car.dataset.carType ? car.dataset.carType.toLowerCase() : '';
+            
+            const matchesPrice = price >= minPrice && price <= maxPrice;
+            const matchesTransmission = selectedTransmission.length === 0 || selectedTransmission.some(t => transmission.includes(t));
+            const matchesSeats = selectedSeats.length === 0 || selectedSeats.some(s => seats.includes(s));
+            const matchesCarType = selectedCarTypes.length === 0 || (carType && selectedCarTypes.includes(carType));
+            
+            if (matchesPrice && matchesTransmission && matchesSeats && matchesCarType) {
                 car.style.display = '';
                 car.style.animation = 'fadeInUp 0.5s ease forwards';
             } else {
-                car.style.opacity = '0';
-                car.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    car.style.display = 'none';
-                }, 500);
+                car.style.display = 'none';
             }
+        });
+
+        // Log selected filters for debugging
+        console.log('Selected Car Types:', selectedCarTypes);
+        console.log('Cars with their types:');
+        cars.forEach(car => {
+            console.log(car.dataset.carType, car.style.display);
         });
     }
 
-    const debouncedPriceFilter = debounce(applyPriceFilter, 300);
-    document.getElementById('minPrice').addEventListener('input', debouncedPriceFilter);
-    document.getElementById('maxPrice').addEventListener('input', debouncedPriceFilter);
-
-    // Smooth mobile filters toggle
-    function toggleFilters() {
-        const filters = document.querySelector('.filters');
-        filters.style.transition = 'transform 0.3s ease';
-        filters.classList.toggle('active');
+    // Clear all filters
+    function clearFilters() {
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        document.getElementById('minPrice').value = '';
+        document.getElementById('maxPrice').value = '';
+        document.querySelectorAll('.car-card').forEach(car => {
+            car.style.display = '';
+            car.style.animation = 'fadeInUp 0.5s ease forwards';
+        });
     }
+
+    // Add event listeners to all filter inputs
+    document.querySelectorAll('input[type="checkbox"], #minPrice, #maxPrice').forEach(input => {
+        input.addEventListener('change', applyFilters);
+    });
+
+    document.getElementById('minPrice').addEventListener('input', applyFilters);
+    document.getElementById('maxPrice').addEventListener('input', applyFilters);
     </script>
 </body>
 </html>

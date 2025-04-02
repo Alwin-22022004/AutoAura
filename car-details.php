@@ -20,7 +20,6 @@ $car = $result->fetch_assoc();
 $features = json_decode($car['car_features'], true);
 $images = json_decode($car['images'], true);
 $stmt->close();
-$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -181,51 +180,64 @@ $conn->close();
         }
 
         /* Reviews Section */
-        .reviews {
-            margin-top: 40px;
-        }
-
-        .reviews h2 {
-            font-size: 1.8rem;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .review-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .review-card {
-            background: white;
+        .reviews-section {
+            margin: 40px 0;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        .reviewer {
+        .reviews-container {
+            margin-top: 20px;
+        }
+        .review-card {
+            border: 1px solid #eee;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .review-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
             margin-bottom: 15px;
         }
-
-        .reviewer img {
-            width: 50px;
-            height: 50px;
+        .reviewer-info {
+            display: flex;
+            align-items: center;
+        }
+        .reviewer-avatar {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            object-fit: cover;
+            margin-right: 10px;
         }
-
-        .stars {
-            color: #ffc107;
-            margin-bottom: 10px;
+        .reviewer-name {
+            font-weight: 600;
+            color: #333;
         }
-
+        .review-rating .fa-star {
+            color: #ddd;
+            margin: 0 2px;
+        }
+        .review-rating .fa-star.active {
+            color: #ffd700;
+        }
         .review-text {
-            color: #666;
+            color: #555;
             line-height: 1.6;
+            margin: 15px 0;
+        }
+        .review-date {
+            color: #888;
+            font-size: 0.9em;
+        }
+        .no-reviews {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
         }
 
         @media (max-width: 768px) {
@@ -315,49 +327,66 @@ $conn->close();
                 <div class="price">
                     ₹<?php echo number_format($car['price']); ?> <span>/ day</span>
                 </div>
+                <br>
                 <a href="rent-car.php?id=<?php echo $car['id']; ?>" class="book-now-btn">Book Now</a>
             </div>
         </div>
 
-        <!-- Reviews Section -->
-        <div class="reviews">
+        <!-- Customer Reviews Section -->
+        <div class="reviews-section">
             <h2>Customer Reviews</h2>
-            <div class="review-grid">
-                <div class="review-card">
-                    <div class="reviewer">
-                        <i class="fas fa-user-circle" style="font-size: 50px; color: #ccc;"></i>
-                        <div>
-                            <h4>John Doe</h4>
-                            <div class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="review-text">"Amazing experience! The car was in perfect condition and the service was exceptional."</p>
-                </div>
+            <div class="reviews-container">
+                <?php
+                // Fetch reviews for this car
+                $reviews_sql = "SELECT r.*, u.fullname 
+                              FROM reviews r 
+                              JOIN users u ON r.user_id = u.id 
+                              WHERE r.car_id = ? 
+                              ORDER BY r.created_at DESC";
+                $reviews_stmt = $conn->prepare($reviews_sql);
+                $reviews_stmt->bind_param("i", $car_id);
+                $reviews_stmt->execute();
+                $reviews_result = $reviews_stmt->get_result();
 
-                <div class="review-card">
-                    <div class="reviewer">
-                        <i class="fas fa-user-circle" style="font-size: 50px; color: #ccc;"></i>
-                        <div>
-                            <h4>Jane Smith</h4>
-                            <div class="stars">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
+                if ($reviews_result->num_rows > 0) {
+                    while ($review = $reviews_result->fetch_assoc()) {
+                        ?>
+                        <div class="review-card">
+                            <div class="review-header">
+                                <div class="reviewer-info">
+                                    <img src="assets/profile.jpg" alt="User" class="reviewer-avatar">
+                                    <span class="reviewer-name"><?php echo htmlspecialchars($review['fullname']); ?></span>
+                                </div>
+                                <div class="review-rating">
+                                    <?php
+                                    for ($i = 1; $i <= 5; $i++) {
+                                        if ($i <= $review['rating']) {
+                                            echo '<i class="fas fa-star active"></i>';
+                                        } else {
+                                            echo '<i class="fas fa-star"></i>';
+                                        }
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                            <div class="review-text">
+                                <?php echo nl2br(htmlspecialchars($review['review_text'])); ?>
+                            </div>
+                            <div class="review-date">
+                                <?php echo date('F d, Y', strtotime($review['created_at'])); ?>
                             </div>
                         </div>
-                    </div>
-                    <p class="review-text">"Luxury at its finest. The car exceeded my expectations in every way."</p>
-                </div>
+                        <?php
+                    }
+                } else {
+                    echo '<p class="no-reviews">No reviews yet for this car.</p>';
+                }
+                $reviews_stmt->close();
+                $conn->close();
+                ?>
             </div>
         </div>
+
     </div>
 
     <script>

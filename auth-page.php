@@ -1,5 +1,9 @@
 <?php
 session_start();
+$error = isset($_GET['error']) ? $_GET['error'] : '';
+if ($error === 'blocked') {
+    $_SESSION['error'] = "Your account has been blocked. Please contact the administrator.";
+}
 if (isset($_SESSION['errors'])) {
     foreach ($_SESSION['errors'] as $error) {
         echo '<div class="error">' . htmlspecialchars($error) . '</div>';

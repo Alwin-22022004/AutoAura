@@ -2,6 +2,62 @@
 session_start();
 require_once 'db_connect.php';
 
+// Handle Google login
+if (isset($_POST['google_login'])) {
+    $google_email = filter_var(trim($_POST['google_email']), FILTER_VALIDATE_EMAIL);
+    $google_name = trim($_POST['google_name']);
+    
+    if (!$google_email) {
+        $_SESSION['error'] = "Invalid Google email.";
+        header("Location: auth-page.php");
+        exit();
+    }
+
+    // Check if user exists
+    $stmt = $conn->prepare("SELECT id, fullname, mobile, verification_doc, active FROM users WHERE email = ?");
+    $stmt->bind_param("s", $google_email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows === 0) {
+        // Create new user with active status
+        $stmt = $conn->prepare("INSERT INTO users (email, fullname, auth_type, active) VALUES (?, ?, 'google', 'active')");
+        $stmt->bind_param("ss", $google_email, $google_name);
+        $stmt->execute();
+        $user_id = $conn->insert_id;
+        
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['user_name'] = $google_name;
+        $_SESSION['is_admin'] = false;
+        
+        // Redirect to profile completion
+        header("Location: user-profile.php?complete_profile=1");
+        exit();
+    } else {
+        // Existing user
+        $user = $result->fetch_assoc();
+        
+        // Check account status FIRST before setting any session variables
+        if ($user['active'] === 'blocked') {
+            $_SESSION['error'] = "Your account has been blocked. Please contact the administrator.";
+            header("Location: auth-page.php");
+            exit();
+        }
+        
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user_name'] = $user['fullname'];
+        $_SESSION['is_admin'] = false;
+        
+        // Check if profile is complete
+        if (empty($user['mobile']) || empty($user['verification_doc'])) {
+            header("Location: user-profile.php?complete_profile=1");
+        } else {
+            header("Location: dashboard.php");
+        }
+        exit();
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         // Sanitize and validate input
@@ -44,7 +100,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Check if user exists and verify password
-        $stmt = $conn->prepare("SELECT id, fullname, email, password FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT id, fullname, email, password, active FROM users WHERE email = ?");
         if (!$stmt) {
             throw new Exception("Database error: " . $conn->error);
         }
@@ -54,13 +110,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $result = $stmt->get_result();
 
         if ($result->num_rows === 0) {
-            $_SESSION['error'] = "Invalid email or password.";
-            header("Location: auth-page.php");
-            exit();
+            throw new Exception("Invalid email or password.");
         }
 
         $user = $result->fetch_assoc();
         
+        // Check account status FIRST
+        if ($user['active'] === 'blocked') {
+            $_SESSION['error'] = "Your account has been blocked. Please contact the administrator.";
+            header("Location: auth-page.php");
+            exit();
+        }
+
         // Verify password
         if (!password_verify($password, $user['password'])) {
             // Use a generic error message for security

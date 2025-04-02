@@ -29,6 +29,26 @@ $car = $result->fetch_assoc();
 $features = json_decode($car['car_features'], true);
 $images = json_decode($car['images'], true);
 
+// Get booked dates for this car
+$booked_dates_query = "SELECT start_date, end_date FROM bookings 
+                      WHERE car_id = ? AND status != 'cancelled'";
+$booked_stmt = $conn->prepare($booked_dates_query);
+$booked_stmt->bind_param("i", $car_id);
+$booked_stmt->execute();
+$booked_result = $booked_stmt->get_result();
+        
+$booked_dates = [];
+while($booking = $booked_result->fetch_assoc()) {
+    $start = new DateTime($booking['start_date']);
+    $end = new DateTime($booking['end_date']);
+    $interval = new DateInterval('P1D');
+    $date_range = new DatePeriod($start, $interval, $end->modify('+1 day'));
+    
+    foreach($date_range as $date) {
+        $booked_dates[] = $date->format('Y-m-d');
+    }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate required fields
@@ -101,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 payment_method, total_price, driver_charges, 
                 insurance, status, payment_status, 
                 booking_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', NOW())";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'pending', NOW())";
             
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("iissssssiii", 
@@ -148,6 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_orange.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         * {
             margin: 0;
@@ -398,10 +421,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 50%;
             transform: translate(-50%, -50%);
             width: 90%;
-            max-width: 600px;
+            max-width: 550px;
             background: #fff;
             border-radius: 15px;
-            padding: 25px;
+            padding: 15px;
             box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
@@ -409,7 +432,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .location-popup h2 {
             font-size: 1.5rem;
             color: #333;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             text-align: center;
             position: relative;
         }
@@ -429,12 +452,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .cities-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         .city-option {
-            padding: 15px;
+            padding: 10px;
             border: 2px solid #eee;
             border-radius: 10px;
             text-align: center;
@@ -453,9 +476,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .city-option img {
-            width: 40px;
-            height: 40px;
-            margin-bottom: 8px;
+            width: 30px;
+            height: 30px;
+            margin-bottom: 5px;
             transition: transform 0.3s ease;
         }
 
@@ -464,7 +487,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .city-option div {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: #666;
             margin-top: 5px;
             font-weight: 500;
@@ -473,13 +496,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .locations-list {
             background: #f9f9f9;
             border-radius: 10px;
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
             padding: 10px;
         }
 
         .location-option {
-            padding: 12px 15px;
+            padding: 10px 15px;
             border-radius: 8px;
             cursor: pointer;
             display: flex;
@@ -522,8 +545,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .close-popup {
             position: absolute;
-            top: 15px;
-            right: 15px;
+            top: 10px;
+            right: 10px;
             font-size: 1.5rem;
             color: #666;
             cursor: pointer;
@@ -546,14 +569,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #f5b754;
             color: white;
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             border: none;
             border-radius: 8px;
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         .next-btn:hover {
@@ -578,7 +601,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .modal-header {
-            padding: 16px 20px;
+            padding: 10px 15px;
             display: flex;
             align-items: center;
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -596,30 +619,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .modal-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             color: #1a1a1a;
         }
 
         .modal-body {
-            padding: 16px 20px;
+            padding: 10px 15px;
         }
 
         .search-location-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             color: #1a1a1a;
         }
 
         .search-input-container {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .search-input {
             width: 100%;
-            padding: 14px 20px 14px 40px;
+            padding: 10px 20px 10px 40px;
             border-radius: 999px;
             border: 1px solid rgba(0, 0, 0, 0.1);
             font-size: 16px;
@@ -638,7 +661,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .location-options .location-option {
             display: flex;
             align-items: center;
-            padding: 12px 0;
+            padding: 10px 0;
             cursor: pointer;
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
@@ -655,9 +678,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .map-container {
-            height: 400px;
+            height: 300px;
             width: 100%;
-            margin: 15px 0;
+            margin: 10px 0;
             border-radius: 8px;
             border: 1px solid #ddd;
         }
@@ -706,9 +729,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         #map {
-            height: 400px;
+            height: 300px;
             width: 100%;
-            margin: 15px 0;
+            margin: 10px 0;
             border-radius: 8px;
             border: 1px solid #ddd;
         }
@@ -717,11 +740,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #f5b754;
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         .confirm-btn:hover {
@@ -733,6 +756,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 14px;
             color: #666;
         }
+
+        .booking-summary {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .booking-summary h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .summary-details {
+            display: grid;
+            gap: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-item .label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .detail-item .value {
+            color: #333;
+        }
+
+        .date-picker-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .date-picker-container input {
+            padding-right: 40px;
+            cursor: pointer;
+            background-color: white;
+        }
+
+        .date-picker-container i {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #f5b754;
+            pointer-events: none;
+        }
+
+        .flatpickr-calendar {
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .flatpickr-day.flatpickr-disabled {
+            background-color: #ffebee !important;
+            color: #ff5252 !important;
+            text-decoration: line-through;
+        }
+        .flatpickr-day:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay) {
+            background-color: #e8f5e9 !important;
+            color: #4caf50 !important;
+        }
+        .flatpickr-day.selected {
+            background-color: #f5b754 !important;
+            color: white !important;
+        }
+        .flatpickr-months .flatpickr-month {
+         border-radius: 5px 5px 0 0;
+         background:  #f5b754;
+         color: #fff;
+         fill: #fff;
+         height: 34px;
+         line-height: 1;
+         text-align: center;
+         position: relative;
+        }
+        .flatpickr-current-month .flatpickr-monthDropdown-months {
+        appearance: menulist;
+        background:  #f5b754;
+        border: none;
+        border-radius: 0;
+        box-sizing: border-box;
+        color: inherit;
+        cursor: pointer;
+        font-size: inherit;
+        font-family: inherit;
+        font-weight: 300;
+        height: auto;
+        line-height: inherit;
+        margin: -1px 0 0 0;
+        outline: none;
+        padding: 0 0 0 0.5ch;
+        position: relative;
+        vertical-align: initial;
+        webkit-box-sizing: border-box;
+        webkit-appearance: menulist;
+        moz-appearance: menulist;
+        width: auto;
+        }
+        .flatpickr-weekdays {
+        background:  #f5b754;
+        text-align: center;
+        overflow: hidden;
+        width: 100%;
+        display: -webkit-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex
+webkit-box-align: center;
+        webkit-align-items: center;
+        ms-flex-align: center;
+        align-items: center;
+        height: 28px;
+        }
+        span.flatpickr-weekday {
+        cursor: default;
+        font-size: 90%;
+        background:  #f5b754;
+        color: rgba(0, 0, 0, 0.54);
+        line-height: 1;
+        margin: 0;
+        text-align: center;
+        display: block;
+        webkit-box-flex: 1;
+        webkit-flex: 1;
+        ms-flex: 1;
+        flex: 1;
+        font-weight: bolder;
+    }
     </style>
 </head>
 <body>
@@ -779,7 +944,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="left-section">
                 <div class="form-group">
                     <label for="start_date">Pickup Date</label>
-                    <input type="date" id="start_date" name="start_date" required min="<?php echo date('Y-m-d'); ?>" onchange="updateReturnDateOptions(); calculateTotal()">
+                    <div class="date-picker-container">
+                        <input type="text" id="start_date" name="start_date" placeholder="Select pickup date" required>
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -789,7 +957,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label for="end_date">Return Date</label>
-                    <input type="date" id="end_date" name="end_date" required>
+                    <div class="date-picker-container">
+                        <input type="text" id="end_date" name="end_date" placeholder="Select return date" required>
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -800,13 +971,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="right-section">
                 <div class="form-group">
-                    <label for="center">Nearest Car Center</label>
+                    <label for="center">Additional services</label>
                     <select id="center" name="center" required>
-                        <option value="">Select a center</option>
-                        <option value="central">LUXE DRIVE Central</option>
-                        <option value="north">LUXE DRIVE North</option>
-                        <option value="south">LUXE DRIVE South</option>
-                        <option value="east">LUXE DRIVE East</option>
+                        <option value="">Select a service</option>
+                        <option value="Nothing">Nothing</option>
+                        <option value="Flower Decorations"> Flower Decorations</option>
+                        <option value="Power Bank & Charging Kit">Power Bank & Charging Kit</option>
+                        <option value="Luxury Refreshments">Luxury Refreshments</option>
                     </select>
                 </div>
 
@@ -844,6 +1015,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <?php if (isset($show_payment) && $show_payment): ?>
+        <div class="booking-summary">
+            <h3>Booking Details</h3>
+            <div class="summary-details">
+                <div class="detail-item">
+                    <span class="label">Pickup Date:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['start_date']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Pickup Time:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['pickup_time']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Return Date:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['end_date']); ?></span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Pickup Location:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['pickup_location']); ?></span>
+                </div>
+                <?php if (!empty($_POST['additional_services'])): ?>
+                <div class="detail-item">
+                    <span class="label">Additional Services:</span>
+                    <span class="value">
+                        <?php 
+                        $services = is_array($_POST['additional_services']) ? 
+                            implode(', ', array_map('htmlspecialchars', $_POST['additional_services'])) : 
+                            htmlspecialchars($_POST['additional_services']);
+                        echo $services;
+                        ?>
+                    </span>
+                </div>
+                <?php endif; ?>
+                <div class="detail-item">
+                    <span class="label">Payment Method:</span>
+                    <span class="value"><?php echo htmlspecialchars($_POST['payment_method']); ?></span>
+                </div>
+            </div>
+        </div>
         <button id="razorpay-button" style="display: block;">Pay Now</button>
         <?php endif; ?>
     </div>
@@ -945,12 +1154,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div id="map-picker" style="display: none;">
                     <h2>Select a Location</h2>
                     <p>Click on the map to pick a location.</p>
-                    <div id="map">
-                        
+                    <div id="location-map" class="map-container" style="height: 300px; margin: 10px 0;"></div>
+                    <div class="info" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <p><strong>Latitude:</strong> <span id="lat">Not selected</span></p>
+                        <p><strong>Longitude:</strong> <span id="lng">Not selected</span></p>
+                        <p><strong>Address:</strong> <span id="address">Not selected</span></p>
+                        <div class="button-container" style="margin-top: 10px;">
+                            <button type="button" id="confirm-location" class="confirm-btn" disabled>Confirm Location</button>
+                        </div>
                     </div>
-                    <p id="info">Latitude: <span id="lat"></span> | Longitude: <span id="lon"></span></p>
-                    <p id="address">Address: Not selected</p>
-                    <button type="button" id="confirm-location" class="confirm-btn">Confirm Location</button>
                 </div>
             </div>
         </div>
@@ -1270,6 +1482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function updateReturnDateOptions() {
             const startDateInput = document.getElementById('start_date');
             const endDateInput = document.getElementById('end_date');
+            const maxRentalDays = 2; // Maximum rental period in days
             
             if (!startDateInput.value) {
                 endDateInput.value = '';
@@ -1278,85 +1491,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             const startDate = new Date(startDateInput.value);
-            const startDateStr = startDate.toISOString().split('T')[0];
-            const nextDay = new Date(startDate);
-            nextDay.setDate(startDate.getDate() + 1);
-            const dayAfter = new Date(startDate);
-            dayAfter.setDate(startDate.getDate() + 2);
+            const maxEndDate = new Date(startDate);
+            maxEndDate.setDate(startDate.getDate() + maxRentalDays);
 
-            // Format dates to YYYY-MM-DD for min/max attributes
-            const nextDayStr = nextDay.toISOString().split('T')[0];
-            const dayAfterStr = dayAfter.toISOString().split('T')[0];
+            // Get the flatpickr instance for end date
+            const endDatePicker = document.querySelector("#end_date")._flatpickr;
+            
+            // Update the flatpickr instance with new date constraints
+            endDatePicker.set('minDate', startDate);
+            endDatePicker.set('maxDate', maxEndDate);
 
+            // Enable the input
             endDateInput.disabled = false;
-            endDateInput.min = startDateStr; 
-            endDateInput.max = dayAfterStr;
 
-            // If current end date is not within allowed range, clear it
+            // Clear the end date if it's outside the valid range
             if (endDateInput.value) {
                 const endDate = new Date(endDateInput.value);
-                if (endDate < startDate || endDate > dayAfter) {
+                if (endDate < startDate || endDate > maxEndDate) {
                     endDateInput.value = '';
                 }
             }
         }
 
-        function calculateTotal() {
-            const startDate = new Date(document.getElementById('start_date').value);
-            const endDate = new Date(document.getElementById('end_date').value);
-            const baseRate = <?php echo $car['price']; ?>;
-            const driverRate = 800;
-            const insurance = 500;
-
-            if (startDate && endDate && endDate >= startDate) {
-                const diffTime = Math.abs(endDate - startDate);
-                const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const total = (baseRate + driverRate) * days + insurance;
-                
-                // Show the breakdown
-                document.querySelectorAll('.summary-item').forEach(item => {
-                    const label = item.querySelector('span:first-child');
-                    if (label) {
-                        if (label.textContent.includes('Base Rate')) {
-                            item.querySelector('span:last-child').textContent = '₹' + (baseRate * days).toLocaleString() + ' (' + days + ' days)';
-                        } else if (label.textContent.includes('Driver Charges')) {
-                            item.querySelector('span:last-child').textContent = '₹' + (driverRate * days).toLocaleString() + ' (' + days + ' days)';
-                        }
-                    }
-                });
-
-                document.getElementById('total_cost').textContent = '₹' + total.toLocaleString();
-            } else {
-                // Reset the display if dates are invalid
-                document.getElementById('total_cost').textContent = '₹0';
-                document.querySelectorAll('.summary-item').forEach(item => {
-                    const label = item.querySelector('span:first-child');
-                    if (label) {
-                        if (label.textContent.includes('Base Rate')) {
-                            item.querySelector('span:last-child').textContent = '₹<?php echo number_format($car['price']); ?>/day';
-                        } else if (label.textContent.includes('Driver Charges')) {
-                            item.querySelector('span:last-child').textContent = '₹800/day';
-                        }
-                    }
-                });
-            }
-        }
-
-        // Initialize return date state
         document.addEventListener('DOMContentLoaded', function() {
-            const endDateInput = document.getElementById('end_date');
-            endDateInput.disabled = true;
+            // Initialize date pickers with booked dates disabled
+            const bookedDates = <?php echo json_encode($booked_dates); ?>;
+            const today = new Date();
+            const maxRentalDays = 2; // Maximum rental period in days
             
-            document.getElementById('start_date').addEventListener('change', function() {
-                updateReturnDateOptions();
-                calculateTotal();
+            // Initialize start date picker
+            flatpickr("#start_date", {
+                dateFormat: "Y-m-d",
+                minDate: today,
+                maxDate: new Date(today.getFullYear(), today.getMonth() + 1, today.getDate()),
+                disable: bookedDates,
+                onChange: function(selectedDates) {
+                    if (selectedDates[0]) {
+                        updateReturnDateOptions();
+                        calculateTotal();
+                        
+                        // Update pickup time restrictions based on selected date
+                        const pickupTime = document.getElementById('pickup_time');
+                        const now = new Date();
+                        const selectedDate = selectedDates[0];
+                        
+                        // Reset the pickup time input
+                        if (pickupTime._flatpickr) {
+                            pickupTime._flatpickr.destroy();
+                        }
+                        
+                        // Configure time picker based on selected date
+                        const isToday = selectedDate.toDateString() === now.toDateString();
+                        const minTime = isToday ? new Date(now.getTime() + 60 * 60 * 1000) : "00:00";
+                        
+                        flatpickr("#pickup_time", {
+                            enableTime: true,
+                            noCalendar: true,
+                            dateFormat: "H:i",
+                            minTime: isToday ? `${minTime.getHours()}:${minTime.getMinutes()}` : "00:00",
+                            maxTime: "23:00",
+                            minuteIncrement: 30,
+                            defaultHour: isToday ? minTime.getHours() : 9,
+                            defaultMinute: isToday ? Math.ceil(minTime.getMinutes() / 30) * 30 : 0,
+                            onChange: function(selectedTimes) {
+                                calculateTotal();
+                            }
+                        });
+                    }
+                }
+            });
+            
+            // Initialize end date picker
+            const endDatePicker = flatpickr("#end_date", {
+                dateFormat: "Y-m-d",
+                minDate: today,
+                disable: bookedDates,
+                onChange: function(selectedDates) {
+                    if (selectedDates[0]) {
+                        calculateTotal();
+                    }
+                }
             });
 
-            document.getElementById('end_date').addEventListener('change', function() {
-                calculateTotal();
-            });
+            // Disable end date initially
+            document.getElementById('end_date').disabled = true;
         });
 
+        document.getElementById('start_date').addEventListener('change', function() {
+            updateReturnDateOptions();
+            calculateTotal();
+        });
+
+        document.getElementById('end_date').addEventListener('change', function() {
+            calculateTotal();
+        });
+        
         // Razorpay integration
         <?php if (isset($show_payment) && $show_payment): ?>
         document.getElementById('booking-form').style.display = 'none';
@@ -1436,53 +1665,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         };
         <?php endif; ?>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const mainContent = document.querySelector('.main-location-content');
-            const homeDeliveryContent = document.querySelector('.home-delivery-content');
-            const backButton = document.querySelector('.back-button');
-            
-            // Show home delivery interface when clicking Home Delivery option
-            document.querySelector('.locations-list').addEventListener('click', function(e) {
-                const locationOption = e.target.closest('.location-option');
-                if (locationOption && locationOption.textContent.includes('Home Delivery')) {
-                    mainContent.style.display = 'none';
-                    homeDeliveryContent.style.display = 'block';
-                }
-            });
-            
-            // Back button returns to main location selection
-            backButton.addEventListener('click', function() {
-                homeDeliveryContent.style.display = 'none';
-                mainContent.style.display = 'block';
-            });
-            
-            // Handle search input
-            const searchInput = document.querySelector('.search-input');
-            searchInput.addEventListener('focus', function() {
-                this.placeholder = '';
-            });
-            
-            searchInput.addEventListener('blur', function() {
-                if (!this.value) {
-                    this.placeholder = 'Search for your area or street';
-                }
-            });
-            
-            // Handle location options
-            document.getElementById('current-location').addEventListener('click', function() {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(function(position) {
-                        // Handle the location data
-                        console.log(`Latitude: ${position.coords.latitude}, Longitude: ${position.coords.longitude}`);
-                    });
-                }
-            });
-            
-            document.getElementById('map-location').addEventListener('click', function() {
-                // Implement map view functionality
-                console.log('Opening map view');
-            });
-        });
+        function calculateTotal() {
+            const startDate = new Date(document.getElementById('start_date').value);
+            const endDate = new Date(document.getElementById('end_date').value);
+            const baseRate = <?php echo $car['price']; ?>;
+            const driverRate = 800;
+            const insurance = 500;
+
+            if (startDate && endDate && endDate >= startDate) {
+                const diffTime = Math.abs(endDate - startDate);
+                const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                const total = (baseRate + driverRate) * days + insurance;
+                
+                // Show the breakdown
+                document.querySelectorAll('.summary-item').forEach(item => {
+                    const label = item.querySelector('span:first-child');
+                    if (label) {
+                        if (label.textContent.includes('Base Rate')) {
+                            item.querySelector('span:last-child').textContent = '₹' + (baseRate * days).toLocaleString() + ' (' + days + ' days)';
+                        } else if (label.textContent.includes('Driver Charges')) {
+                            item.querySelector('span:last-child').textContent = '₹' + (driverRate * days).toLocaleString() + ' (' + days + ' days)';
+                        }
+                    }
+                });
+
+                document.getElementById('total_cost').textContent = '₹' + total.toLocaleString();
+            } else {
+                // Reset the display if dates are invalid
+                document.getElementById('total_cost').textContent = '₹0';
+                document.querySelectorAll('.summary-item').forEach(item => {
+                    const label = item.querySelector('span:first-child');
+                    if (label) {
+                        if (label.textContent.includes('Base Rate')) {
+                            item.querySelector('span:last-child').textContent = '₹<?php echo number_format($car['price']); ?>/day';
+                        } else if (label.textContent.includes('Driver Charges')) {
+                            item.querySelector('span:last-child').textContent = '₹800/day';
+                        }
+                    }
+                });
+            }
+        }
 
         let map;
         let marker;
@@ -1492,7 +1714,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const pickupLocationInput = document.getElementById('pickup_location');
 
         mapLocation.addEventListener('click', function() {
-            // Hide location options and show map
+            // Hide location options and show map picker
             document.querySelector('.location-options').style.display = 'none';
             mapPicker.style.display = 'block';
             
@@ -1503,52 +1725,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
 
         function initializeMap() {
-            map = L.map('map').setView([20, 78], 4); // Default view (India)
-            
+            map = L.map('location-map').setView([20.5937, 78.9629], 5); // Default: India
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: ' OpenStreetMap contributors'
+                attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
-            map.on('click', onMapClick);
-        }
+            map.on('click', function(e) {
+                const lat = e.latlng.lat.toFixed(6);
+                const lng = e.latlng.lng.toFixed(6);
 
-        function onMapClick(e) {
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
+                if (marker) {
+                    map.removeLayer(marker);
+                }
 
-            // Remove existing marker
-            if (marker) {
-                map.removeLayer(marker);
-            }
+                marker = L.marker([lat, lng]).addTo(map)
+                    .bindPopup(`Selected Location<br>Lat: ${lat}, Lng: ${lng}`)
+                    .openPopup();
 
-            // Add new marker
-            marker = L.marker([lat, lon]).addTo(map)
-                .bindPopup("Selected Location")
-                .openPopup();
+                document.getElementById("lat").textContent = lat;
+                document.getElementById("lng").textContent = lng;
+                document.getElementById("confirm-location").disabled = false;
 
-            document.getElementById("lat").textContent = lat.toFixed(6);
-            document.getElementById("lon").textContent = lon.toFixed(6);
-
-            // Fetch address
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-                .then(response => response.json())
-                .then(data => {
-                    const address = data.display_name;
-                    document.getElementById("address").textContent = "Address: " + address;
-                })
-                .catch(error => {
-                    document.getElementById("address").textContent = "Address: Not found";
-                });
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let address = data.display_name || "Address not found";
+                        document.getElementById("address").textContent = address;
+                    })
+                    .catch(() => document.getElementById("address").textContent = "Unable to fetch address");
+            });
         }
 
         confirmBtn.addEventListener('click', function() {
             if (marker) {
-                const lat = marker.getLatLng().lat;
-                const lon = marker.getLatLng().lng;
-                const address = document.getElementById("address").textContent.replace("Address: ", "");
+                const lat = marker.getLatLng().lat.toFixed(6);
+                const lng = marker.getLatLng().lng.toFixed(6);
+                const address = document.getElementById("address").textContent;
                 
                 // Update pickup location input
-                pickupLocationInput.value = `${address} (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+                pickupLocationInput.value = `${address} (${lat}, ${lng})`;
                 
                 // Close the popup
                 const locationPopup = document.querySelector('.location-popup');
@@ -1563,18 +1778,121 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Handle map location button
         document.getElementById('map-location').addEventListener('click', function() {
-            const mapWindow = window.open('map-location.php', 'MapLocation', 'width=1000,height=800');
-            // Hide the popup while map window is open
-            const locationPopup = document.querySelector('.location-popup');
-            const popupOverlay = document.querySelector('.popup-overlay');
-            if (locationPopup) locationPopup.style.display = 'none';
-            if (popupOverlay) popupOverlay.style.display = 'none';
+            // Hide location options and show map picker
+            document.querySelector('.location-options').style.display = 'none';
+            document.getElementById('map-picker').style.display = 'block';
+            
+            // Initialize map if not already done
+            if (!map) {
+                initializeMap();
+            }
+        });
+
+        // Back button handler for map picker
+        document.querySelector('.back-button').addEventListener('click', function() {
+            // Hide map picker and show location options
+            document.getElementById('map-picker').style.display = 'none';
+            document.querySelector('.location-options').style.display = 'block';
         });
 
         // Function to receive location from map window
         window.setPickupLocation = function(address, lat, lng) {
             document.getElementById('pickup_location').value = `${address} (${lat}, ${lng})`;
         };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainContent = document.querySelector('.main-location-content');
+            const homeDeliveryContent = document.querySelector('.home-delivery-content');
+            const backButton = document.querySelector('.back-button');
+            const mapInterface = document.getElementById('map-interface');
+            const currentLocationBtn = document.getElementById('current-location');
+            const locationButton = document.getElementById('locationButton');
+            
+            // Show home delivery interface when clicking Home Delivery option
+            document.querySelector('.locations-list').addEventListener('click', function(e) {
+                const locationOption = e.target.closest('.location-option');
+                if (locationOption && locationOption.textContent.includes('Home Delivery')) {
+                    mainContent.style.display = 'none';
+                    homeDeliveryContent.style.display = 'block';
+                }
+            });
+            
+            // Handle current location button click
+            currentLocationBtn.addEventListener('click', function() {
+                if (navigator.geolocation) {
+                    mapInterface.style.display = 'block';
+                    if (!map) {
+                        initializeMap();
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            map.setView([lat, lng], 15);
+                            
+                            if (marker) {
+                                map.removeLayer(marker);
+                            }
+                            marker = L.marker([lat, lng]).addTo(map)
+                                .bindPopup('Your Location')
+                                .openPopup();
+
+                            // Enable the confirm button
+                            document.getElementById('confirm-location').disabled = false;
+                            
+                            // Update coordinates display
+                            document.getElementById('lat').textContent = lat.toFixed(6);
+                            document.getElementById('lng').textContent = lng.toFixed(6);
+                            
+                            // Get address using reverse geocoding
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    const address = data.display_name || 'Address not found';
+                                    document.getElementById('address').textContent = address;
+                                })
+                                .catch(() => {
+                                    document.getElementById('address').textContent = 'Unable to fetch address';
+                                });
+                        },
+                        function(error) {
+                            let errorMessage;
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    errorMessage = "Location access denied. Please enable location services.";
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    errorMessage = "Location information unavailable.";
+                                    break;
+                                case error.TIMEOUT:
+                                    errorMessage = "Location request timed out.";
+                                    break;
+                                default:
+                                    errorMessage = "An unknown error occurred.";
+                            }
+                            document.getElementById('error').textContent = errorMessage;
+                            document.getElementById('error').style.display = 'block';
+                        }
+                    );
+                } else {
+                    document.getElementById('error').textContent = "Geolocation is not supported by this browser.";
+                    document.getElementById('error').style.display = 'block';
+                }
+            });
+            
+            // Handle Get My Location button click
+            locationButton.addEventListener('click', function() {
+                currentLocationBtn.click(); // Reuse the current location functionality
+            });
+            
+            // Back button returns to main location selection
+            backButton.addEventListener('click', function() {
+                homeDeliveryContent.style.display = 'none';
+                mainContent.style.display = 'block';
+                mapInterface.style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+            });
+        });
     </script>
 </body>
 </html>

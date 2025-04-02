@@ -882,6 +882,185 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         background-color: #f8d7da;
         border-color: #f5c6cb;
       }
+
+      /* Truncated content styles */
+      .truncated {
+        max-height: 60px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .show-more {
+        color: #007bff;
+        cursor: pointer;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: inline-block;
+      }
+
+      .show-more:hover {
+        text-decoration: underline;
+      }
+
+      .car-images.truncated {
+        max-height: 100px;
+      }
+
+      .car-images img {
+        margin: 2px;
+        width: 100px;
+        height: auto;
+      }
+
+      .feature-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .feature-list li {
+        margin-bottom: 4px;
+      }
+
+      /* Truncated content styles */
+      .truncate-content {
+        position: relative;
+        transition: max-height 0.3s ease;
+      }
+
+      .truncated {
+        max-height: 60px;
+        overflow: hidden;
+      }
+
+      .truncated::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 20px;
+        background: linear-gradient(transparent, #fff);
+        pointer-events: none;
+      }
+
+      .show-more {
+        color: #007bff;
+        cursor: pointer;
+        font-size: 0.9em;
+        padding: 4px 8px;
+        margin-top: 5px;
+        display: inline-block;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        background: rgba(0, 123, 255, 0.1);
+      }
+
+      .show-more:hover {
+        background: rgba(0, 123, 255, 0.2);
+        text-decoration: none;
+      }
+
+      /* Car images styles */
+      .car-images {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+        padding: 8px;
+        transition: max-height 0.3s ease;
+      }
+
+      .car-images.truncated {
+        max-height: 120px;
+        overflow: hidden;
+      }
+
+      .car-images img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+        transition: transform 0.2s ease;
+      }
+
+      .car-images img:hover {
+        transform: scale(1.05);
+      }
+
+      /* Features list styles */
+      .feature-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .feature-list li {
+        margin-bottom: 6px;
+        padding: 4px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .feature-list li:last-child {
+        border-bottom: none;
+      }
+
+      .feature-list strong {
+        color: #555;
+        margin-right: 8px;
+      }
+
+      /* Description styles */
+      .car-description {
+        line-height: 1.5;
+        color: #444;
+      }
+
+      /* Table Container Styles */
+      .table-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .table-container thead {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .table-container tbody {
+        border-top: 2px solid #eee;
+      }
+
+      /* Custom scrollbar styles */
+      .table-container::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .table-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+
+      .table-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+
+      .table-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
     </style>
   </head>
   <body>
@@ -985,138 +1164,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                 <i class="fas fa-clock"></i>
               </div>
             </div>
-            <div class="card-content">
-              <div class="card-number"><?php echo $stats['pending_approvals']; ?></div>
-              <div class="card-label">Pending Approvals</div>
-            </div>
+            <a href="pending_approvals.php" class="card-link" style="text-decoration: none; color: inherit;">
+              <div class="card-content">
+                <div class="card-number"><?php echo $stats['pending_approvals']; ?></div>
+                <div class="card-label">Pending Approvals</div>
+              </div>
+            </a>
           </div>
         </div>
-
-        <div class="table-container">
-            <h2>Car Listing Approvals</h2><br>
-            <?php
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['car_id'])) {
-                include 'db_connection.php';
-                $car_id = intval($_POST['car_id']);
-                $action = $_POST['action'];
-
-                if ($action === 'approve' || $action === 'reject') {
-                    $new_status = ($action === 'approve') ? 'approved' : 'rejected';
-                    $update_sql = "UPDATE cars SET status = ? WHERE id = ?";
-                    $stmt = $conn->prepare($update_sql);
-                    $stmt->bind_param("si", $new_status, $car_id);
-
-                    if ($stmt->execute()) {
-                        echo json_encode(["success" => true, "message" => "Car listing #$car_id has been $new_status successfully!", "new_status" => ucfirst($new_status)]);
-                    } else {
-                        echo json_encode(["success" => false, "message" => "Error updating status: " . $conn->error]);
-                    }
-                    $stmt->close();
-                    exit;
-                }
-            }
-
-            $sql = "SELECT * FROM cars ORDER BY id DESC";
-            $result = $conn->query($sql);
-            
-            if ($result && $result->num_rows > 0): ?>
-                <div id="alertContainer"></div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Car Name</th>
-                            <th>Description</th>
-                            <th>Features</th>
-                            <th>Price</th>
-                            <th>Images</th>
-                            <th>RC Document</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($car = $result->fetch_assoc()): ?>
-                            <tr id="row-<?php echo $car['id']; ?>">
-                                <td><?php echo $car['id']; ?></td>
-                                <td><?php echo htmlspecialchars($car['car_name']); ?></td>
-                                <td><?php echo htmlspecialchars($car['car_description']); ?></td>
-                                <td>
-                                    <?php 
-                                    $features = json_decode($car['car_features'], true);
-                                    if ($features && is_array($features)) {
-                                        echo "<ul class='feature-list'>";
-                                        foreach ($features as $key => $value) {
-                                            echo "<li><strong>" . ucwords(str_replace('_', ' ', $key)) . ":</strong> " . htmlspecialchars($value) . "</li>";
-                                        }
-                                        echo "</ul>";
-                                    } else {
-                                        echo "<div class='feature-text'>" . nl2br(htmlspecialchars($car['car_features'])) . "</div>";
-                                    }
-                                    ?>
-                                </td>
-                                <td>₹<?php echo number_format($car['price'], 2); ?></td>
-                                <td class="car-images">
-                                    <?php 
-                                    $images = json_decode($car['images'], true);
-                                    if ($images && is_array($images)) {
-                                        // Display main image
-                                        if (!empty($images['main_image'])) {
-                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" width="100" alt="Main Car Image" style="margin: 2px;">';
-                                        }
-                                        
-                                        // Display thumbnails
-                                        if (!empty($images['thumbnails']) && is_array($images['thumbnails'])) {
-                                            foreach ($images['thumbnails'] as $thumbnail) {
-                                                if (!empty($thumbnail)) {
-                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" width="100" alt="Car Thumbnail" style="margin: 2px;">';
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        echo "<p>No Images Available</p>";
-                                    }
-                                    ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($car['rc_document'])): ?>
-                                        <a href="<?php echo htmlspecialchars($car['rc_document']); ?>" target="_blank" class="btn btn-info">
-                                            <i class="fas fa-file-pdf"></i> View RC Book
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="text-muted">No RC Document</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td id="status-<?php echo $car['id']; ?>">
-                                    <span class="status-label <?php echo htmlspecialchars($car['status']); ?>">
-                                        <?php echo ucfirst(htmlspecialchars($car['status'])); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php if ($car['status'] === 'pending'): ?>
-                                        <div class="action-buttons">
-                                            <button class="btn btn-approve" onclick="updateCarStatus(<?php echo $car['id']; ?>, 'approve')">
-                                                <i class="fas fa-check"></i> Approve
-                                            </button>
-                                            <button class="btn btn-reject" onclick="updateCarStatus(<?php echo $car['id']; ?>, 'reject')">
-                                                <i class="fas fa-times"></i> Reject
-                                            </button>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            <?php else: ?>
-                <div class="content-section">
-                    <p>No car listings available.</p>
-                </div>
-            <?php endif; ?>
-        </div>
-
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
+        $(document).ready(function() {
+            initializeTruncatedContent();
+        });
+
+        function initializeTruncatedContent() {
+            // Initialize truncated content
+            $('.truncate-content').each(function() {
+                const content = $(this);
+                if (content.height() > 60) {
+                    content.addClass('truncated');
+                    content.after('<span class="show-more">Show More</span>');
+                }
+            });
+
+            // Initialize truncated images
+            $('.car-images').each(function() {
+                const images = $(this);
+                if (images.height() > 100) {
+                    images.addClass('truncated');
+                    images.append('<div class="show-more">Show More Images</div>');
+                }
+            });
+
+            // Handle show more clicks
+            $(document).on('click', '.show-more', function() {
+                const button = $(this);
+                const content = button.prev();
+                
+                if (content.hasClass('truncated')) {
+                    content.removeClass('truncated');
+                    button.text('Show Less');
+                } else {
+                    content.addClass('truncated');
+                    button.text(content.hasClass('car-images') ? 'Show More Images' : 'Show More');
+                }
+            });
+        }
+
         function updateCarStatus(carId, action) {
             const row = $(`#row-${carId}`);
             const actionButtons = row.find('.action-buttons');
@@ -1218,112 +1313,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         </script>
 
         <style>
-        .status {
-            display: inline-block;
-            padding: 6px 12px;
+        /* Button styles */
+        .btn-enable, .btn-disable {
+            transition: all 0.3s ease;
+        }
+
+        .btn-enable {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-disable {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-enable:hover, .btn-disable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Row transition */
+        tr {
+            transition: background-color 0.3s ease;
+        }
+
+        /* Alert styles */
+        #alertContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .alert {
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
             border-radius: 4px;
-            font-weight: 500;
-            text-transform: capitalize;
-            animation: fadeIn 0.3s ease;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
-        .status.pending {
-            background-color: #fff3cd;
-            color: #856404;
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
-        .status.approved {
-            background-color: #d4edda;
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(-20px); }
+        }
+
+        .alert.success {
             color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
         }
 
-        .status.rejected {
-            background-color: #f8d7da;
+        .alert.error {
             color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        </style>
-
-        <style>
-            @keyframes fadeOut {
-                from { opacity: 1; transform: translateX(0); }
-                to { opacity: 0; transform: translateX(-20px); }
-            }
-
-            #alertContainer {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 1000;
-            }
-
-            .alert {
-                padding: 15px 25px;
-                margin-bottom: 10px;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                animation: slideIn 0.3s ease;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            }
-
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-
-            .alert.success {
-                color: #155724;
-                background-color: #d4edda;
-                border-color: #c3e6cb;
-            }
-
-            .alert.error {
-                color: #721c24;
-                background-color: #f8d7da;
-                border-color: #f5c6cb;
-            }
-
-            .action-buttons {
-                display: flex;
-                gap: 8px;
-                justify-content: center;
-            }
-
-            .btn {
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                transition: all 0.3s ease;
-            }
-
-            .btn-approve {
-                background-color: #28a745;
-                color: white;
-            }
-
-            .btn-approve:hover {
-                background-color: #218838;
-                transform: translateY(-2px);
-            }
-
-            .btn-reject {
-                background-color: #dc3545;
-                color: white;
-            }
-
-            .btn-reject:hover {
-                background-color: #c82333;
-                transform: translateY(-2px);
-            }
         </style>
 
       </div>
@@ -1338,7 +1390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
         </div>
         
         <?php
-        $user_sql = "SELECT * FROM users ORDER BY id DESC";
+        $user_sql = "SELECT id, fullname, email, mobile, active FROM users ORDER BY id DESC";
         $user_result = $conn->query($user_sql);
         ?>
         
@@ -1350,6 +1402,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                         <th>Name</th>
                         <th>Email</th>
                         <th>Mobile</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -1362,20 +1415,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                             <td><?php echo htmlspecialchars($user['email']); ?></td>
                             <td><?php echo htmlspecialchars($user['mobile']); ?></td>
                             <td>
-                                <button onclick="deleteUser(<?php echo $user['id']; ?>)" class="btn btn-danger btn-sm">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
+                                <span class="status-badge <?php echo $user['active'] === 'active' ? 'active' : 'blocked'; ?>">
+                                    <?php echo ucfirst($user['active']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <?php if ($user['active'] === 'active'): ?>
+                                    <button onclick="updateUserStatus(<?php echo $user['id']; ?>, 'block')" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-ban"></i>Block
+                                    </button>
+                                <?php else: ?>
+                                    <button onclick="updateUserStatus(<?php echo $user['id']; ?>, 'activate')" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check-circle"></i>Activate
+                                    </button>
+                                <?php endif; ?>
                             </td>
                         </tr>
-                    <?php endwhile; ?>
+                        <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center">No users found</td>
+                            <td colspan="6" class="text-center">No users found</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
+
+        <style>
+            .status-badge {
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-size: 0.9em;
+                font-weight: 500;
+            }
+            .status-badge.active {
+                background: #d4edda;
+                color: #155724;
+            }
+            .status-badge.blocked {
+                background: #f8d7da;
+                color: #721c24;
+            }
+            .btn-warning {
+                background: #ffc107;
+                color: #000;
+            }
+            .btn-success {
+                background: #28a745;
+                color: white;
+            }
+            .btn-sm {
+                padding: 5px 10px;
+                font-size: 0.875rem;
+            }
+        </style>
+
+        <script>
+        function updateUserStatus(userId, action) {
+            if (!confirm('Are you sure you want to ' + action + ' this user?')) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('action', action);
+
+            fetch('update_user_status.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the UI
+                    const row = document.querySelector(`.user-row[data-user-id="${userId}"]`);
+                    const statusBadge = row.querySelector('.status-badge');
+                    const actionButton = row.querySelector('button');
+
+                    if (action === 'block') {
+                        statusBadge.classList.remove('active');
+                        statusBadge.classList.add('blocked');
+                        statusBadge.textContent = 'Blocked';
+                        actionButton.classList.remove('btn-warning');
+                        actionButton.classList.add('btn-success');
+                        actionButton.innerHTML = '<i class="fas fa-check-circle"></i> Activate';
+                        actionButton.onclick = () => updateUserStatus(userId, 'activate');
+                    } else {
+                        statusBadge.classList.remove('blocked');
+                        statusBadge.classList.add('active');
+                        statusBadge.textContent = 'Active';
+                        actionButton.classList.remove('btn-success');
+                        actionButton.classList.add('btn-warning');
+                        actionButton.innerHTML = '<i class="fas fa-ban"></i> Block';
+                        actionButton.onclick = () => updateUserStatus(userId, 'block');
+                    }
+
+                    // Show success message
+                    alert(data.message);
+                } else {
+                    alert(data.message || 'Error updating user status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating user status');
+            });
+        }
+        </script>
       </div>
 
       <div class="section" id="inventory">
@@ -1398,158 +1544,327 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
             </div>
         <?php endif; ?>
         
-        <div class="table-container">
-          <?php
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['car_id'])) {
-                include 'db_connection.php';
-                $car_id = intval($_POST['car_id']);
-                $action = $_POST['action'];
-
-                if ($action === 'delete') {
-                    $delete_sql = "DELETE FROM cars WHERE id = ?";
-                    $stmt = $conn->prepare($delete_sql);
-                    $stmt->bind_param("i", $car_id);
-
-                    if ($stmt->execute()) {
-                        echo json_encode(["success" => true, "message" => "Car listing $car_id has been deleted successfully!"]);
-                    } else {
-                        echo json_encode(["success" => false, "message" => "Error deleting car: " . $conn->error]);
-                    }
-                    $stmt->close();
-                    exit;
-                } elseif ($action === 'toggle_status') {
-                    $toggle_sql = "UPDATE cars SET is_active = NOT is_active WHERE id = ?";
-                    $stmt = $conn->prepare($toggle_sql);
-                    $stmt->bind_param("i", $car_id);
-
-                    if ($stmt->execute()) {
-                        // Get the new status
-                        $status_sql = "SELECT is_active FROM cars WHERE id = ?";
-                        $status_stmt = $conn->prepare($status_sql);
-                        $status_stmt->bind_param("i", $car_id);
-                        $status_stmt->execute();
-                        $result = $status_stmt->get_result();
-                        $new_status = $result->fetch_assoc()['is_active'];
-                        
-                        // Store message in session
-                        $_SESSION['status_message'] = "Car listing $car_id has been " . ($new_status ? "enabled" : "disabled") . " successfully!";
-                        
-                        // Redirect to the same page
-                        header('Location: ' . $_SERVER['PHP_SELF']);
-                        exit();
-                    } else {
-                        echo json_encode(["success" => false, "message" => "Error updating status: " . $conn->error]);
-                    }
-                    $stmt->close();
-                    exit;
-                }
-            }
-
+        <div class="car-grid">
+            <?php
             // Modified query to only show approved cars
             $sql = "SELECT * FROM cars WHERE status = 'approved' ORDER BY id DESC";
             $result = $conn->query($sql);
             
-            if ($result && $result->num_rows > 0): ?>
-                <div id="alertContainer"></div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Car Name</th>
-                            <th>Description</th>
-                            <th>Features</th>
-                            <th>Price</th>
-                            <th>Images</th>
-                            <th>RC Document</th>
-                            <th>Status</th>
-                            <th>Visibility</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($car = $result->fetch_assoc()): ?>
-                            <tr id="row-<?php echo $car['id']; ?>">
-                                <td><?php echo $car['id']; ?></td>
-                                <td><?php echo htmlspecialchars($car['car_name']); ?></td>
-                                <td><?php echo htmlspecialchars($car['car_description']); ?></td>
-                                <td>
-                                    <?php 
-                                    $features = json_decode($car['car_features'], true);
-                                    if ($features && is_array($features)) {
-                                        echo "<ul class='feature-list'>";
-                                        foreach ($features as $key => $value) {
-                                            echo "<li><strong>" . ucwords(str_replace('_', ' ', $key)) . ":</strong> " . htmlspecialchars($value) . "</li>";
-                                        }
-                                        echo "</ul>";
-                                    } else {
-                                        echo "<div class='feature-text'>" . nl2br(htmlspecialchars($car['car_features'])) . "</div>";
-                                    }
-                                    ?>
-                                </td>
-                                <td>₹<?php echo number_format($car['price'], 2); ?></td>
-                                <td class="car-images">
-                                    <?php 
-                                    $images = json_decode($car['images'], true);
-                                    if ($images && is_array($images)) {
-                                        // Display main image
-                                        if (!empty($images['main_image'])) {
-                                            echo '<img src="' . htmlspecialchars($images['main_image']) . '" width="100" alt="Main Car Image" style="margin: 2px;">';
-                                        }
-                                        
-                                        // Display thumbnails
-                                        if (!empty($images['thumbnails']) && is_array($images['thumbnails'])) {
-                                            foreach ($images['thumbnails'] as $thumbnail) {
-                                                if (!empty($thumbnail)) {
-                                                    echo '<img src="' . htmlspecialchars($thumbnail) . '" width="100" alt="Car Thumbnail" style="margin: 2px;">';
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        echo "<p>No Images Available</p>";
-                                    }
-                                    ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($car['rc_document'])): ?>
-                                        <a href="<?php echo htmlspecialchars($car['rc_document']); ?>" target="_blank" class="btn btn-info">
-                                            <i class="fas fa-file-pdf"></i> View RC Book
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="text-muted">No RC Document</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td id="status-<?php echo $car['id']; ?>">
-                                    <span class="status-label <?php echo htmlspecialchars($car['status']); ?>">
-                                        <?php echo ucfirst(htmlspecialchars($car['status'])); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <button 
-                                        class="btn <?php echo $car['is_active'] ? 'btn-disable' : 'btn-enable'; ?>"
-                                        onclick="return toggleCarStatus(<?php echo $car['id']; ?>)"
-                                        data-status="<?php echo $car['is_active']; ?>"
-                                    >
-                                        <i class="fas <?php echo $car['is_active'] ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
-                                        <?php echo $car['is_active'] ? 'Disable' : 'Enable'; ?>
-                                    </button>
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-delete" onclick="deleteCar(<?php echo $car['id']; ?>)">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            <?php else: ?>
-                <div class="content-section">
+            if ($result && $result->num_rows > 0):
+                while ($car = $result->fetch_assoc()):
+                    $images = json_decode($car['images'], true);
+                    $main_image = !empty($images['main_image']) ? $images['main_image'] : 'assets/img/no-image.jpg';
+            ?>
+                <div class="car-card" id="car-<?php echo $car['id']; ?>">
+                    <div class="car-image">
+                        <img src="<?php echo htmlspecialchars($main_image); ?>" alt="<?php echo htmlspecialchars($car['car_name']); ?>">
+                        <div class="car-status <?php echo $car['is_active'] ? 'active' : 'inactive'; ?>">
+                            <?php echo $car['is_active'] ? 'Active' : 'Inactive'; ?>
+                        </div>
+                    </div>
+                    <div class="car-details">
+                        <h3 class="car-name"><?php echo htmlspecialchars($car['car_name']); ?></h3>
+                        <div class="car-price">₹<?php echo number_format($car['price'], 2); ?></div>
+                        
+                        <div class="car-actions">
+                            <?php if (!empty($images['rc_document'])): ?>
+                                <a href="<?php echo htmlspecialchars($images['rc_document']); ?>" target="_blank" class="btn btn-info">
+                                    <i class="fas fa-file-pdf"></i> RC Book
+                                </a>
+                            <?php endif; ?>
+                            
+                            <button 
+                                class="btn btn-edit"
+                                onclick="openEditModal(<?php echo $car['id']; ?>, '<?php echo htmlspecialchars(addslashes($car['car_name'])); ?>', <?php echo $car['price']; ?>)"
+                            >
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+
+                            <button 
+                                class="btn <?php echo $car['is_active'] ? 'btn-disable' : 'btn-enable'; ?>"
+                                onclick="return toggleCarStatus(<?php echo $car['id']; ?>)"
+                                data-status="<?php echo $car['is_active']; ?>"
+                            >
+                                <i class="fas <?php echo $car['is_active'] ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
+                                <?php echo $car['is_active'] ? 'Disable' : 'Enable'; ?>
+                            </button>
+                            
+                            <button class="btn btn-delete" onclick="deleteCar(<?php echo $car['id']; ?>)" style="width: 100%; display: flex; justify-content: center; align-items: center;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <?php 
+                endwhile;
+            else: 
+            ?>
+                <div class="no-cars">
                     <p>No approved car listings available.</p>
                 </div>
             <?php endif; ?>
         </div>
+
+        <!-- Edit Modal -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Edit Car Details</h2>
+                <form id="editCarForm">
+                    <input type="hidden" id="editCarId" name="car_id">
+                    <div class="form-group">
+                        <label for="editCarName">Car Name:</label>
+                        <input type="text" id="editCarName" name="car_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editCarPrice">Price (₹):</label>
+                        <input type="number" id="editCarPrice" name="price" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <style>
+            .car-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .car-card {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+                transition: transform 0.2s;
+            }
+
+            .car-card:hover {
+                transform: translateY(-5px);
+            }
+
+            .car-image {
+                position: relative;
+                height: 200px;
+                overflow: hidden;
+            }
+
+            .car-image img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .car-status {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                padding: 5px 10px;
+                border-radius: 15px;
+                font-size: 0.8em;
+                font-weight: 500;
+            }
+
+            .car-status.active {
+                background: #d4edda;
+                color: #155724;
+            }
+
+            .car-status.inactive {
+                background: #f8d7da;
+                color: #721c24;
+            }
+
+            .car-details {
+                padding: 15px;
+            }
+
+            .car-name {
+                margin: 0 0 10px;
+                font-size: 1.2em;
+                font-weight: 600;
+                color: #333;
+            }
+
+            .car-price {
+                font-size: 1.3em;
+                font-weight: 700;
+                color: #28a745;
+                margin-bottom: 15px;
+            }
+
+            .car-actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .car-actions .btn {
+                flex: 1;
+                min-width: 100px;
+                text-align: center;
+                padding: 8px;
+                border-radius: 4px;
+                font-size: 0.9em;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+
+            .btn-info {
+                background: #17a2b8;
+                color: white;
+                text-decoration: none;
+            }
+
+            .btn-edit {
+                background: #6c757d;
+                color: white;
+            }
+
+            .btn-enable {
+                background: #28a745;
+                color: white;
+            }
+
+            .btn-disable {
+                background: #ffc107;
+                color: #000;
+            }
+
+            .btn-delete {
+                background: #dc3545;
+                color: white;
+            }
+
+            .btn-secondary {
+                background: #6c757d;
+                color: white;
+            }
+
+            .no-cars {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 40px;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+
+            /* Modal Styles */
+            .modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+            }
+
+            .modal-content {
+                background-color: #fefefe;
+                margin: 15% auto;
+                padding: 20px;
+                border-radius: 8px;
+                width: 80%;
+                max-width: 500px;
+                position: relative;
+            }
+
+            .close {
+                position: absolute;
+                right: 20px;
+                top: 10px;
+                font-size: 28px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            .form-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+            }
+
+            .form-group input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 1em;
+            }
+
+            .form-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 20px;
+            }
+        </style>
+
+        <script>
+        // Modal functions
+        const modal = document.getElementById('editModal');
+        const span = document.getElementsByClassName('close')[0];
+
+        function openEditModal(carId, carName, carPrice) {
+            document.getElementById('editCarId').value = carId;
+            document.getElementById('editCarName').value = carName;
+            document.getElementById('editCarPrice').value = carPrice;
+            modal.style.display = 'block';
+        }
+
+        function closeEditModal() {
+            modal.style.display = 'none';
+        }
+
+        span.onclick = closeEditModal;
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeEditModal();
+            }
+        }
+
+        // Form submission
+        document.getElementById('editCarForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('update_car.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the card without refreshing
+                    const card = document.getElementById('car-' + formData.get('car_id'));
+                    card.querySelector('.car-name').textContent = formData.get('car_name');
+                    card.querySelector('.car-price').textContent = '₹' + Number(formData.get('price')).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    
+                    closeEditModal();
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.message || 'Error updating car details', 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Error communicating with server', 'error');
+            });
+        });
+        </script>
       </div>
 
       <div class="section" id="workshops">
@@ -1739,7 +2054,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
       }
 
       // Alert function for showing notifications
-      function showAlert(message, type) {
+      function showAlert(type, message) {
           const alertContainer = document.getElementById('alertContainer');
           const alert = document.createElement('div');
           alert.className = `alert ${type}`;
@@ -1841,95 +2156,157 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
       </script>
 
       <script>
-      // Add search functionality
-      document.getElementById('userSearch').addEventListener('input', function() {
-          const searchTerm = this.value.toLowerCase();
-          const rows = document.getElementsByClassName('user-row');
-          
-          Array.from(rows).forEach(row => {
-              const text = row.textContent.toLowerCase();
-              row.style.display = text.includes(searchTerm) ? '' : 'none';
-          });
-      });
-
-      function deleteUser(userId) {
-          const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
-          const userName = userRow.querySelector('td:nth-child(2)').textContent;
-          const userEmail = userRow.querySelector('td:nth-child(3)').textContent;
-          
-          if (confirm(`Are you sure you want to delete user:\n\nName: ${userName}\nEmail: ${userEmail}\n\nThis action cannot be undone.`)) {
-              fetch('delete_user.php', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/x-www-form-urlencoded',
-                  },
-                  body: `user_id=${userId}&csrf_token=<?php echo $_SESSION['csrf_token']; ?>`
-              })
-              .then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      userRow.style.animation = 'fadeOut 0.3s ease forwards';
-                      setTimeout(() => {
-                          userRow.remove();
-                          // Update user count in dashboard
-                          const userCountElement = document.querySelector('.card-number');
-                          const currentCount = parseInt(userCountElement.textContent);
-                          userCountElement.textContent = currentCount - 1;
-                      }, 300);
-                      showAlert('success', data.message);
-                  } else {
-                      showAlert('error', data.message || 'Error deleting user');
-                  }
-              })
-              .catch(error => {
-                  console.error('Error:', error);
-                  showAlert('error', 'An error occurred while deleting the user');
-              });
-          }
-      }
-
+      // Toggle car status
       function toggleCarStatus(carId) {
-          // Prevent default form submission behavior
-          event.preventDefault();
-          
-          if (!confirm('Are you sure you want to change the visibility status of this car?')) return;
+          if (!confirm('Are you sure you want to change this car\'s status?')) return false;
 
-          // Create form data
-          const formData = new FormData();
-          formData.append('car_id', carId);
-          formData.append('action', 'toggle_status');
-          formData.append('csrf_token', '<?php echo $_SESSION['csrf_token']; ?>');
-
-          // Send request to the same page
-          fetch(window.location.href, { 
+          fetch('update_car_status.php', {
               method: 'POST',
-              body: formData
+              headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: `car_id=${carId}&action=toggle_status&csrf_token=<?php echo $_SESSION['csrf_token']; ?>`
           })
-          .then(response => {
-              // Reload the page after successful response
-              window.location.reload();
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  const button = document.querySelector(`button[onclick="return toggleCarStatus(${carId})"]`);
+                  const statusDiv = button.closest('.car-card').querySelector('.car-status');
+                  
+                  // Update button text and class
+                  if (data.new_status === 1) {
+                      button.className = 'btn btn-disable';
+                      button.innerHTML = '<i class="fas fa-eye-slash"></i> Disable';
+                      statusDiv.className = 'car-status active';
+                      statusDiv.textContent = 'Active';
+                  } else {
+                      button.className = 'btn btn-enable';
+                      button.innerHTML = '<i class="fas fa-eye"></i> Enable';
+                      statusDiv.className = 'car-status inactive';
+                      statusDiv.textContent = 'Inactive';
+                  }
+                  showAlert('Status updated successfully', 'success');
+              } else {
+                  showAlert(data.message || 'Error updating status', 'error');
+              }
           })
           .catch(error => {
               console.error('Error:', error);
-              showAlert('error', 'An error occurred while updating the car status');
+              showAlert('Error communicating with server', 'error');
           });
-      }
-
-      // Alert function for showing notifications
-      function showAlert(type, message) {
-          const alertContainer = document.getElementById('alertContainer');
-          const alert = document.createElement('div');
-          alert.className = `alert ${type}`;
-          alert.textContent = message;
           
-          alertContainer.appendChild(alert);
-          
-          // Remove the alert after 3 seconds
-          setTimeout(() => {
-              alert.style.animation = 'fadeOut 0.3s ease forwards';
-              setTimeout(() => alert.remove(), 300);
-          }, 3000);
+          return false; // Prevent form submission
       }
       </script>
 
-      <div class="section" id="inventory">{{ ... }}
+      <div class="section" id="inventory">{{ ... }}</div>
+
+    <style>
+        /* Table styles */
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table td {
+            vertical-align: top;
+            padding: 12px;
+        }
+
+        /* Truncated content styles */
+        .truncate-content {
+            position: relative;
+            transition: max-height 0.3s ease;
+            min-height: 40px;
+        }
+
+        .truncated {
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .truncated::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25px;
+            background: linear-gradient(transparent, #fff);
+            pointer-events: none;
+        }
+
+        .show-more {
+            color: #007bff;
+            cursor: pointer;
+            font-size: 0.9em;
+            padding: 4px 8px;
+            margin-top: 5px;
+            display: inline-block;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .show-more:hover {
+            background: rgba(0, 123, 255, 0.2);
+        }
+
+        /* Car images styles */
+        .car-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            transition: max-height 0.3s ease;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .car-images.truncated {
+            max-height: 120px;
+            overflow: hidden;
+        }
+
+        .car-images img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            transition: transform 0.2s ease;
+        }
+
+        .car-images img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Features list styles */
+        .feature-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .feature-list li {
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list strong {
+            color: #555;
+            margin-right: 8px;
+        }
+
+        /* Description styles */
+        .car-description {
+            line-height: 1.5;
+            color: #444;
+        }
+    </style>
+  </body>
+</html>

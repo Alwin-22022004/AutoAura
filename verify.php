@@ -19,8 +19,9 @@ $razorpay_payment_id = $_POST['razorpay_payment_id'] ?? null;
 $razorpay_order_id = $_POST['razorpay_order_id'] ?? null;
 $razorpay_signature = $_POST['razorpay_signature'] ?? null;
 $booking_id = $_SESSION['booking_id'] ?? null;
+$user_id = $_SESSION['user_id'] ?? null;
 
-if (!$razorpay_payment_id || !$razorpay_order_id || !$razorpay_signature || !$booking_id) {
+if (!$razorpay_payment_id || !$razorpay_order_id || !$razorpay_signature || !$booking_id || !$user_id) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Missing payment information']);
     exit;
@@ -43,10 +44,10 @@ try {
     $payment = $api->payment->fetch($razorpay_payment_id);
     
     // Insert payment record
-    $stmt = $conn->prepare("INSERT INTO payments (booking_id, payment_id, order_id, amount, currency, status) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO payments (booking_id, payment_id, order_id, amount, currency, status,user_id) VALUES (?, ?, ?, ?, ?, ?,?)");
     $amount = $payment->amount / 100; // Convert from paise to rupees
     $status = $payment->status;
-    $stmt->bind_param("isssss", $booking_id, $razorpay_payment_id, $razorpay_order_id, $amount, $payment->currency, $status);
+    $stmt->bind_param("isssssi", $booking_id, $razorpay_payment_id, $razorpay_order_id, $amount, $payment->currency, $status,$user_id);
     $stmt->execute();
     
     // Update booking payment status
