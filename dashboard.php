@@ -43,6 +43,269 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== 'admin' && $_SESSION
             display: inline-block;
         }
 
+        /* Help and Support Button */
+        .help-support-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #d6a04a;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: none;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        /* Support Modal Styles */
+        @keyframes modalFadeIn {
+            from {
+                background-color: rgba(0, 0, 0, 0);
+            }
+            to {
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        @keyframes modalContentShow {
+            from {
+                transform: scale(0.7) translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes modalContentHide {
+            from {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: scale(0.7) translateY(100px);
+                opacity: 0;
+            }
+        }
+
+        .support-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            z-index: 1001;
+            justify-content: flex-end;
+            align-items: flex-end;
+            padding: 30px;
+        }
+
+        .support-modal.active {
+            display: flex;
+            animation: modalFadeIn 0.3s ease forwards;
+        }
+
+        .support-modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transform-origin: bottom right;
+            opacity: 0;
+            margin-bottom: 60px; /* Space for the help button */
+            margin-right: 30px;
+        }
+
+        .support-modal.active .support-modal-content {
+            animation: modalContentShow 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .support-modal.closing .support-modal-content {
+            animation: modalContentHide 0.3s ease forwards;
+        }
+
+        .support-modal.closing {
+            animation: modalFadeIn 0.3s ease reverse forwards;
+        }
+
+        /* Success Notification Styles */
+        @keyframes notificationSlideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes notificationSlideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .success-notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            z-index: 1100;
+            max-width: 400px;
+            animation: notificationSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+
+        .success-notification.hiding {
+            animation: notificationSlideOut 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+
+        .success-notification .icon {
+            font-size: 24px;
+            color: white;
+        }
+
+        .notification-content {
+            flex-grow: 1;
+        }
+
+        .notification-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+        }
+
+        .notification-message {
+            font-size: 14px;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .ticket-number {
+            font-family: monospace;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+
+        .close-notification {
+            background: none;
+            border: none;
+            color: white;
+            opacity: 0.8;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 0;
+            transition: opacity 0.2s;
+        }
+
+        .close-notification:hover {
+            opacity: 1;
+        }
+
+        .support-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .support-modal-header h2 {
+            color: #333;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .support-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .submit-support {
+            background-color: #d6a04a;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-support:hover {
+            background-color: #c49343;
+        }
+
+        .help-support-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            background-color: #c49343;
+        }
+
+        .help-support-btn i {
+            font-size: 20px;
+        }
+
         .user-icon-btn {
             background: none;
             border: none;
@@ -301,8 +564,6 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== 'admin' && $_SESSION
           <li><a href="#rent">Rent</a></li>
           <li><a href="#ride">Ride</a></li>
           <li><a href="#about-us">About us</a></li>
-          <li><a href="spare-parts-store.php">Spare</a></li>
-          <li><a href="#workshops">Workshops</a></li>
         </ul>
 
         <div class="nav__user">
@@ -321,9 +582,9 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== 'admin' && $_SESSION
                 <i class="fas fa-user"></i>
                 <span>Profile</span>
               </a>
-              <a href="settings.php" class="dropdown-item">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
+              <a href="enquiry.php" class="dropdown-item">
+                <i class="fas fa-question-circle"></i>
+                <span>Enquiry</span>
               </a>
               <div class="user-dropdown-divider"></div>
               <a href="logout.php" class="logout-link" onclick="return confirm('Are you sure you want to logout?');">
@@ -836,6 +1097,131 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_id'] !== 'admin' && $_SESSION
         console.log('Document ready, checking for feedback...');
         checkPendingFeedback();
     });
+    </script>
+  </main>
+
+    <!-- Help and Support Button -->
+    <button class="help-support-btn" id="openSupportModal">
+        <i class="fas fa-headset"></i>
+        Help & Support
+    </button>
+
+    <!-- Support Modal -->
+    <div class="support-modal" id="supportModal">
+        <div class="support-modal-content">
+            <div class="support-modal-header">
+                <h2><i class="fas fa-headset"></i> Help & Support</h2>
+                <button class="close-modal" id="closeSupportModal">&times;</button>
+            </div>
+            <form class="support-form" id="supportForm">
+                <div class="form-group">
+                    <label for="subject">Subject</label>
+                    <input type="text" id="subject" name="subject" required placeholder="Brief description of your issue">
+                </div>
+                <div class="form-group">
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" required placeholder="Please describe your problem in detail"></textarea>
+                </div>
+                <button type="submit" class="submit-support">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Support Modal Functionality
+        const supportModal = document.getElementById('supportModal');
+        const openSupportModal = document.getElementById('openSupportModal');
+        const closeSupportModal = document.getElementById('closeSupportModal');
+        const supportForm = document.getElementById('supportForm');
+
+        function closeModal() {
+            supportModal.classList.add('closing');
+            setTimeout(() => {
+                supportModal.classList.remove('active', 'closing');
+            }, 300); // Match the animation duration
+        }
+
+        openSupportModal.addEventListener('click', () => {
+            supportModal.classList.remove('closing');
+            supportModal.classList.add('active');
+        });
+
+        closeSupportModal.addEventListener('click', closeModal);
+
+        // Close modal when clicking outside
+        supportModal.addEventListener('click', (e) => {
+            if (e.target === supportModal) {
+                closeModal();
+            }
+        });
+
+        // Handle form submission
+        supportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(supportForm);
+            
+            try {
+                const response = await fetch('submit_support.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const ticketNumber = `#${String(result.complaint_id).padStart(6, '0')}`;
+                    showSuccessNotification(ticketNumber);
+                    supportForm.reset();
+                    closeModal();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Error submitting support request. Please try again.');
+            }
+        });
+        // Success Notification Function
+        function showSuccessNotification(ticketNumber) {
+            // Remove any existing notifications
+            const existingNotification = document.querySelector('.success-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'success-notification';
+            notification.innerHTML = `
+                <div class="icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="notification-content">
+                    <h3 class="notification-title">Support Request Submitted</h3>
+                    <p class="notification-message">
+                        Your ticket<span class="ticket-number">${ticketNumber}</span> has been created.
+                        Our team will respond shortly.
+                    </p>
+                </div>
+                <button class="close-notification" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            // Add to document
+            document.body.appendChild(notification);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notification.classList.add('hiding');
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
+
+            // Close on click
+            notification.querySelector('.close-notification').addEventListener('click', () => {
+                notification.classList.add('hiding');
+                setTimeout(() => notification.remove(), 500);
+            });
+        }
     </script>
   </body>
 </html>

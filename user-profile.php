@@ -827,7 +827,7 @@ $profile_incomplete = empty($user['mobile']) || empty($user['verification_doc'])
         <?php endif; ?>
 
         <div class="header">
-            <a href="index.php" class="logo">
+            <a href="dashboard.php" class="logo">
                 <img src="assets/Grey_and_Black_Car_Rental_Service_Logo-removebg-preview.png" alt="Auto Aura Premium Logo" style="height: 60px;">
             </a>
             <div class="nav-links">

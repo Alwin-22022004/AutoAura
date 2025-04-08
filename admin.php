@@ -1082,14 +1082,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
           <i class="fas fa-car"></i>
           <span>Inventory</span>
         </div>
-        <div class="menu-item" data-section="workshops">
-          <i class="fas fa-wrench"></i>
-          <span>Workshops</span>
-        </div>
-        <div class="menu-item" data-section="promotions">
-          <i class="fas fa-tag"></i>
-          <span>Promotions</span>
-        </div>
         <div class="menu-item" data-section="complaints">
           <i class="fas fa-comment-alt"></i>
           <span>Complaints</span>
@@ -1114,9 +1106,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
           <span>Admin User</span>
           <img src="assets/profile.jpg" alt="Admin" />
           <div class="dropdown-menu">
-            <a href="#"><i class="fas fa-user"></i>My Profile</a>
-            <a href="#"><i class="fas fa-cog"></i>Account Settings</a>
-            <a href="#"><i class="fas fa-bell"></i>Notifications</a>
             <a href="logout.php"><i class="fas fa-sign-out-alt"></i>Logout</a>
           </div>
         </div>
@@ -1855,13 +1844,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
                     });
                     
                     closeEditModal();
-                    showAlert(data.message, 'success');
+                    showAlert('success', data.message);
                 } else {
-                    showAlert(data.message || 'Error updating car details', 'error');
+                    showAlert('error', data.message || 'Error updating car details');
                 }
             })
             .catch(error => {
-                showAlert('Error communicating with server', 'error');
+                showAlert('error', 'Error communicating with server');
             });
         });
         </script>
@@ -1878,9 +1867,484 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id'])) {
       </div>
 
       <div class="section" id="complaints">
-        <h2>Complaint Handling</h2>
-        <!-- Complaints content -->
+        <h2><i class="fas fa-comment-alt"></i> Complaints Management</h2><br>
+        
+        <!-- Search and Filter Bar -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="complaintSearch" placeholder="Search complaints..." onkeyup="filterComplaints()">
+          </div>
+          <div class="filter-buttons">
+            <button class="filter-btn active" data-status="all">All</button>
+            <button class="filter-btn" data-status="pending">Pending</button>
+            <button class="filter-btn" data-status="in_progress">In Progress</button>
+            <button class="filter-btn" data-status="resolved">Resolved</button>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-container">
+          <?php
+          $stats_sql = "SELECT 
+                          COUNT(*) as total,
+                          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                          SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved
+                        FROM complaints";
+          $stats_result = $conn->query($stats_sql);
+          $stats = $stats_result->fetch_assoc();
+          ?>
+          <div class="stat-card total">
+            <i class="fas fa-comments"></i>
+            <div class="stat-info">
+              <span class="stat-value"><?php echo $stats['total']; ?></span>
+              <span class="stat-label">Total</span>
+            </div>
+          </div>
+          <div class="stat-card pending">
+            <i class="fas fa-clock"></i>
+            <div class="stat-info">
+              <span class="stat-value"><?php echo $stats['pending']; ?></span>
+              <span class="stat-label">Pending</span>
+            </div>
+          </div>
+          <div class="stat-card progress">
+            <i class="fas fa-tasks"></i>
+            <div class="stat-info">
+              <span class="stat-value"><?php echo $stats['in_progress']; ?></span>
+              <span class="stat-label">In Progress</span>
+            </div>
+          </div>
+          <div class="stat-card resolved">
+            <i class="fas fa-check-circle"></i>
+            <div class="stat-info">
+              <span class="stat-value"><?php echo $stats['resolved']; ?></span>
+              <span class="stat-label">Resolved</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <?php
+          $complaints_sql = "SELECT c.*, u.fullname as user_name 
+                            FROM complaints c 
+                            JOIN users u ON c.user_id = u.id 
+                            ORDER BY c.created_at DESC";
+          $complaints_result = $conn->query($complaints_sql);
+
+          if ($complaints_result && $complaints_result->num_rows > 0) {
+            while($row = $complaints_result->fetch_assoc()) {
+              $status_class = '';
+              switch($row['status']) {
+                case 'pending':
+                  $status_class = 'bg-warning text-dark';
+                  break;
+                case 'resolved':
+                  $status_class = 'bg-success text-white';
+                  break;
+                case 'in_progress':
+                  $status_class = 'bg-info text-white';
+                  break;
+              }
+              ?>
+              <div class="content-card" data-status="<?php echo $row['status']; ?>" data-search="<?php echo strtolower($row['subject'] . ' ' . $row['description'] . ' ' . $row['user_name']); ?>">
+                <style>
+                    .content-card {
+                        background: #fff;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        margin-bottom: 20px;
+                        transition: transform 0.2s, box-shadow 0.2s;
+                        overflow: hidden;
+                        border: 1px solid #eee;
+                    }
+                    .content-card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+                    }
+                    .card-header {
+                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                        padding: 15px 20px;
+                        border-bottom: 1px solid #eee;
+                    }
+                    .card-header h5 {
+                        color: #2c3e50;
+                        font-weight: 600;
+                        margin: 0;
+                    }
+                    .badge {
+                        padding: 8px 12px;
+                        border-radius: 20px;
+                        font-weight: 500;
+                        text-transform: capitalize;
+                        letter-spacing: 0.5px;
+                    }
+                    .badge.pending { background: #fff3cd; color: #856404; }
+                    .badge.in_progress { background: #cce5ff; color: #004085; }
+                    .badge.resolved { background: #d4edda; color: #155724; }
+                    .card-body {
+                        padding: 20px;
+                    }
+                    .card-subtitle {
+                        color: #3498db;
+                        font-weight: 600;
+                        margin-bottom: 12px;
+                    }
+                    .card-text {
+                        color: #505050;
+                        line-height: 1.6;
+                        margin-bottom: 15px;
+                    }
+                    .meta-info {
+                        display: flex;
+                        gap: 20px;
+                        color: #6c757d;
+                        font-size: 0.9rem;
+                        margin-top: 15px;
+                    }
+                    .meta-info i {
+                        margin-right: 5px;
+                        color: #3498db;
+                    }
+                    .card-footer {
+                        background: #f8f9fa;
+                        padding: 15px 20px;
+                        border-top: 1px solid #eee;
+                    }
+                    .btn {
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        font-weight: 500;
+                        transition: all 0.2s;
+                        border: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .btn i {
+                        font-size: 0.9rem;
+                    }
+                    .btn-info {
+                        background: #3498db;
+                        color: white;
+                    }
+                    .btn-success {
+                        background: #2ecc71;
+                        color: white;
+                    }
+                    .btn:hover {
+                        transform: translateY(-1px);
+                        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    }
+                </style>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <i class="fas fa-ticket-alt" style="margin-right: 8px; color: #3498db;"></i>
+                    Complaint #<?php echo $row['id']; ?>
+                  </h5>
+                  <span class="badge <?php echo $status_class; ?>">
+                    <i class="fas fa-circle" style="font-size: 8px; margin-right: 5px;"></i>
+                    <?php echo ucfirst(str_replace('_', ' ', $row['status'])); ?>
+                  </span>
+                </div>
+                <div class="card-body">
+                  <h6 class="card-subtitle mb-2"><?php echo htmlspecialchars($row['subject']); ?></h6>
+                  <p class="card-text expandable"><?php echo htmlspecialchars($row['description']); ?></p>
+                  <div class="meta-info">
+                    <small class="text-muted">
+                      <i class="fas fa-user"></i> <?php echo htmlspecialchars($row['user_name']); ?>
+                    </small>
+                    <small class="text-muted">
+                      <i class="fas fa-calendar"></i> <?php echo date('M d, Y', strtotime($row['created_at'])); ?>
+                    </small>
+                  </div>
+                </div>
+                <?php if ($row['status'] !== 'resolved') { ?>
+                  <div class="card-footer">
+                    <div class="d-flex justify-content-end gap-3">
+                      <button class="btn btn-info" onclick="updateStatus(<?php echo $row['id']; ?>, 'in_progress')">
+                        <i class="fas fa-tasks"></i> Mark In Progress
+                      </button>
+                      <button class="btn btn-success" onclick="resolveComplaint(<?php echo $row['id']; ?>)">
+                        <i class="fas fa-check"></i> Mark as Resolved
+                      </button>
+                    </div>
+                  </div>
+                <?php } ?>
+              </div>
+              <?php
+            }
+          } else {
+            echo "<div class='no-data'>No complaints found</div>";
+          }
+          ?>
+        </div>
       </div>
+
+      <style>
+        /* Enhanced Grid Styles */
+        .filter-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+          gap: 15px;
+        }
+
+        .search-box {
+          position: relative;
+          flex: 1;
+          max-width: 300px;
+        }
+
+        .search-box input {
+          width: 100%;
+          padding: 10px 15px 10px 35px;
+          border: 1px solid #ddd;
+          border-radius: 20px;
+          font-size: 0.9rem;
+        }
+
+        .search-box i {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #666;
+        }
+
+        .filter-buttons {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .filter-btn {
+          padding: 8px 15px;
+          border: none;
+          border-radius: 15px;
+          background: #f0f0f0;
+          color: #666;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+          background: #e0e0e0;
+        }
+
+        .filter-btn.active {
+          background: #007bff;
+          color: white;
+        }
+
+        /* Stats Cards */
+        .stats-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+
+        .stat-card {
+          background: white;
+          border-radius: 10px;
+          padding: 20px;
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card i {
+          font-size: 2rem;
+          padding: 15px;
+          border-radius: 50%;
+        }
+
+        .stat-card.total i {
+          background: #e3f2fd;
+          color: #1976d2;
+        }
+
+        .stat-card.pending i {
+          background: #fff3e0;
+          color: #f57c00;
+        }
+
+        .stat-card.progress i {
+          background: #e8f5e9;
+          color: #388e3c;
+        }
+
+        .stat-card.resolved i {
+          background: #e8eaf6;
+          color: #3f51b5;
+        }
+
+        .stat-info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: bold;
+          line-height: 1;
+        }
+
+        .stat-label {
+          color: #666;
+          font-size: 0.9rem;
+        }
+
+        /* Card Enhancements */
+        .content-card {
+          transform-origin: center;
+          animation: cardAppear 0.3s ease-out;
+        }
+
+        .content-card.hidden {
+          display: none;
+        }
+
+        .card-text.expandable {
+          cursor: pointer;
+          position: relative;
+        }
+
+        .card-text.expanded {
+          max-height: none;
+          -webkit-line-clamp: unset;
+        }
+
+        .card-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        @keyframes cardAppear {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+          .filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .search-box {
+            max-width: none;
+          }
+
+          .stats-container {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+      </style>
+
+      <script>
+        // Enhanced complaint handling
+        function updateStatus(complaintId, status) {
+          if (!confirm(`Are you sure you want to mark this complaint as ${status.replace('_', ' ')}?`)) return;
+
+          try {
+            const formData = new FormData();
+            formData.append('complaint_id', complaintId);
+            formData.append('status', status);
+            formData.append('csrf_token', '<?php echo $_SESSION["csrf_token"]; ?>');
+
+            fetch('handle_complaint.php', {
+              method: 'POST',
+              body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                showAlert('Status updated successfully', 'success');
+                location.reload();
+              } else {
+                throw new Error(data.message);
+              }
+            })
+            .catch(error => {
+              showAlert(error.message, 'error');
+            });
+          } catch (error) {
+            showAlert(error.message, 'error');
+          }
+        }
+
+        // Filter complaints
+        function filterComplaints() {
+          const searchTerm = document.getElementById('complaintSearch').value.toLowerCase();
+          const activeFilter = document.querySelector('.filter-btn.active').dataset.status;
+          const cards = document.querySelectorAll('.content-card');
+
+          cards.forEach(card => {
+            const status = card.dataset.status;
+            const searchText = card.dataset.search;
+            const matchesSearch = searchText.includes(searchTerm);
+            const matchesFilter = activeFilter === 'all' || status === activeFilter;
+
+            if (matchesSearch && matchesFilter) {
+              card.classList.remove('hidden');
+            } else {
+              card.classList.add('hidden');
+            }
+          });
+        }
+
+        // Filter button handling
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filterComplaints();
+          });
+        });
+
+        // Expandable description
+        document.querySelectorAll('.card-text.expandable').forEach(text => {
+          text.addEventListener('click', () => {
+            text.classList.toggle('expanded');
+          });
+        });
+
+        // Show alerts with animation
+        function showAlert(message, type) {
+          const alertDiv = document.createElement('div');
+          alertDiv.className = `alert alert-${type}`;
+          alertDiv.textContent = message;
+          alertDiv.style.position = 'fixed';
+          alertDiv.style.top = '20px';
+          alertDiv.style.right = '20px';
+          alertDiv.style.zIndex = '9999';
+          alertDiv.style.padding = '15px 20px';
+          alertDiv.style.borderRadius = '4px';
+          alertDiv.style.animation = 'fadeIn 0.3s ease';
+          alertDiv.style.backgroundColor = type === 'success' ? '#4caf50' : '#f44336';
+          alertDiv.style.color = 'white';
+
+          document.body.appendChild(alertDiv);
+
+          setTimeout(() => {
+            alertDiv.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => alertDiv.remove(), 300);
+          }, 3000);
+        }
+      </script>
     </div>
 
     <?php

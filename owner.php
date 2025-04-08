@@ -39,15 +39,16 @@ $all_bookings_query = "SELECT
     b.payment_method,
     b.status as booking_status,
     b.total_price,
+    COALESCE(p.amount, b.total_price) as amount,
     u.fullname as user_name,
     u.email as user_email,
     u.mobile as user_phone,
     c.car_name,
     c.car_features,
-    p.amount,
     CASE 
         WHEN b.end_date < CURRENT_DATE() THEN 'Completed'
-        ELSE p.status 
+        WHEN b.payment_method = 'cash' AND (p.status IS NULL OR p.status = '') THEN 'pending'
+        ELSE COALESCE(p.status, 'pending')
     END as payment_status,
     p.payment_id as transaction_id
 FROM bookings b
@@ -57,9 +58,11 @@ LEFT JOIN payments p ON b.booking_id = p.booking_id";
 
 // Add WHERE clause based on filter
 if ($filter === 'completed') {
-    $all_bookings_query .= " WHERE b.status = 'completed' OR (b.end_date < CURRENT_DATE() AND b.status != 'cancelled')";
+    $all_bookings_query .= " WHERE (b.status = 'completed' OR (b.end_date < CURRENT_DATE() AND b.status NOT IN ('cancelled', 'pending')))";
 } elseif ($filter === 'cancelled') {
     $all_bookings_query .= " WHERE b.status = 'cancelled'";
+} elseif ($filter === 'active') {
+    $all_bookings_query .= " WHERE b.status NOT IN ('completed', 'cancelled') AND b.end_date >= CURRENT_DATE()";
 }
 
 $all_bookings_query .= " ORDER BY b.booking_date DESC";
@@ -143,8 +146,43 @@ LIMIT 6";
 
 $booking_trends = $conn->query($booking_trends_query);
 
+// Get users with enquiries
+$users_sql = "SELECT DISTINCT e.user_id, u.fullname 
+              FROM enquiries e 
+              JOIN users u ON e.user_id = u.id";
+$users_result = $conn->query($users_sql);
+
+// If a specific user is selected
+$selected_user_id = isset($_GET['user']) ? intval($_GET['user']) : null;
+$selected_user_name = null;
+$chat_messages = [];
+
+if ($selected_user_id) {
+    $name_result = $conn->query("SELECT fullname FROM users WHERE id = $selected_user_id");
+    if ($name_result->num_rows > 0) {
+        $selected_user_name = $name_result->fetch_assoc()['fullname'];
+
+        // Get chat messages
+        $msg_sql = "SELECT * FROM enquiries WHERE user_id = $selected_user_id ORDER BY created_at ASC";
+        $chat_messages = $conn->query($msg_sql);
+    }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Handle chat replies
+    if (isset($_POST['reply_message'], $_POST['user_id'])) {
+        $reply = $conn->real_escape_string($_POST['reply_message']);
+        $user_id = intval($_POST['user_id']);
+
+        $insert_sql = "INSERT INTO enquiries (user_id, message, is_admin_reply, created_at) 
+                       VALUES ($user_id, '$reply', 1, NOW())";
+        $conn->query($insert_sql);
+
+        header("Location: ?section=messages&user=$user_id");
+        exit;
+    }
+
     // Verify token and check if it's not already used
     if (isset($_POST['form_token']) && 
         isset($_SESSION['form_token']) && 
@@ -604,6 +642,126 @@ if (!isset($_GET['status'])) {
             background-color: #0056b3;
         }
 
+        /* Chat Styles */
+        .messages-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            height: calc(100vh - 100px);
+        }
+        .messages-sidebar {
+            width: 250px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            border-radius: 10px 0 0 10px;
+            padding: 20px;
+        }
+        .messages-sidebar h2 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            font-size: 1.5rem;
+        }
+        .user-list {
+            overflow-y: auto;
+            max-height: calc(100% - 60px);
+        }
+        .user-link {
+            display: block;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: #fff;
+            color: #2c3e50;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 1px solid #e9ecef;
+        }
+        .user-link:hover, .user-link.active {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background: #fff;
+            border-radius: 0 10px 10px 0;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .user-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+        .message {
+            margin: 15px 0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .sent {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        .received {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .timestamp {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 5px;
+            display: block;
+        }
+        .reply-form {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        .reply-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 60px;
+            margin-bottom: 10px;
+        }
+        .reply-form button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .reply-form button:hover {
+            background: #0056b3;
+        }
+        .no-chat {
+            text-align: center;
+            color: #6c757d;
+            margin-top: 40px;
+            font-size: 1.1rem;
+        }
+
         @media (max-width: 600px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -769,7 +927,7 @@ if (!isset($_GET['status'])) {
             content: '';
             display: block;
             width: 50px;
-            height: 4px;
+            height: 3px;
             background: linear-gradient(90deg, #007bff, #00d2ff);
             border-radius: 2px;
         }
@@ -1324,14 +1482,65 @@ if (!isset($_GET['status'])) {
             <h2>Owner Dashboard</h2>
             <div class="nav-item active" data-section="dashboard">Dashboard</div>
             <div class="nav-item" data-section="cars">Car Listings</div>
-            <div class="nav-item" data-section="parts">Spare Parts</div>
             <div class="nav-item" data-section="bookings">Bookings</div>
-            <div class="nav-item" data-section="workshop">Workshop</div>
             <div class="nav-item" data-section="earnings">Earnings</div>
-            <div class="nav-item" data-section="messages">Messages</div>
+            <div class="nav-item" data-section="parts">Messages</div>
         </div>
 
         <div class="main-content">
+            <?php if (isset($_GET['section']) && $_GET['section'] === 'messages'): ?>
+                <div class="section-header">
+                    <h2>Messages</h2>
+                </div>
+                <div class="messages-container">
+                    <div class="messages-sidebar">
+                        <h2>Enquiries</h2>
+                        <div class="user-list">
+                            <?php if ($users_result && $users_result->num_rows > 0): ?>
+                                <?php while ($user = $users_result->fetch_assoc()): ?>
+                                    <a href="?section=messages&user=<?= $user['user_id'] ?>" 
+                                       class="user-link <?= $user['user_id'] == $selected_user_id ? 'active' : '' ?>"
+                                       onclick="showChat(event, <?= $user['user_id'] ?>)">
+                                        <?= htmlspecialchars($user['fullname']) ?>
+                                    </a>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p class="no-chat">No enquiries yet</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="chat-container">
+                        <?php if ($selected_user_id && $selected_user_name): ?>
+                            <div class="user-header">
+                                <?= htmlspecialchars($selected_user_name) ?>
+                            </div>
+                            <div class="chat-messages">
+                                <?php if ($chat_messages && $chat_messages->num_rows > 0): ?>
+                                    <?php while ($row = $chat_messages->fetch_assoc()): ?>
+                                        <div class="message <?= $row['is_admin_reply'] ? 'received' : 'sent' ?>">
+                                            <?= nl2br(htmlspecialchars($row['message'])) ?>
+                                            <span class="timestamp"><?= date('M d, H:i', strtotime($row['created_at'])) ?></span>
+                                        </div>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <p class="no-chat">No messages in this conversation.</p>
+                                <?php endif; ?>
+                            </div>
+
+                            <form method="POST" class="reply-form">
+                                <input type="hidden" name="user_id" value="<?= $selected_user_id ?>">
+                                <textarea name="reply_message" placeholder="Type your message here..." required></textarea>
+                                <button type="submit">Send Message</button>
+                            </form>
+                        <?php else: ?>
+                            <div class="no-chat">
+                                <p>Select a user from the list to view their messages</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <div id="cars-section" class="hidden">
                 <div class="container">
                     <h2>Add a Car</h2>
@@ -1419,9 +1628,9 @@ if (!isset($_GET['status'])) {
                     <div class="bookings-header">
                         <h2 class="bookings-title">Booking Management</h2>
                         <div class="booking-filters">
-                            <button class="filter-button <?php echo $filter === 'all' ? 'active' : ''; ?>" data-filter="all">All Bookings</button>
-                            <button class="filter-button <?php echo $filter === 'completed' ? 'active' : ''; ?>" data-filter="completed">Completed</button>
-                            <button class="filter-button <?php echo $filter === 'cancelled' ? 'active' : ''; ?>" data-filter="cancelled">Cancelled</button>
+                            <button class="filter-button active" data-status="all" onclick="filterBookings('all', event)">All Bookings</button>
+                            <button class="filter-button" data-status="completed" onclick="filterBookings('completed', event)">Completed</button>
+                            <button class="filter-button" data-status="cancelled" onclick="filterBookings('cancelled', event)">Cancelled</button>
                         </div>
                     </div>
 
@@ -1444,7 +1653,7 @@ if (!isset($_GET['status'])) {
                                         $car_features = json_decode($booking['car_features'], true);
                                         $first_letter = strtoupper(substr($booking['user_name'], 0, 1));
                                 ?>
-                                    <tr>
+                                    <tr class="booking-row" data-status="<?php echo strtolower($booking['booking_status']); ?>">
                                         <td>
                                             <div class="customer-info">
                                                 <div class="customer-avatar"><?php echo $first_letter; ?></div>
@@ -1489,8 +1698,8 @@ if (!isset($_GET['status'])) {
                                             <small class="text-muted"><?php echo $booking['transaction_id'] ?? 'N/A'; ?></small>
                                         </td>
                                         <td>
-                                            <span class="status-badge status-<?php echo strtolower($booking['payment_status'] ?? 'pending'); ?>">
-                                                <?php echo htmlspecialchars($booking['payment_status'] ?? 'Pending'); ?>
+                                            <span class="status-badge status-<?php echo strtolower($booking['payment_status']); ?>">
+                                                <?php echo htmlspecialchars($booking['payment_status']); ?>
                                             </span>
                                         </td>
                                         <td>
@@ -1500,10 +1709,10 @@ if (!isset($_GET['status'])) {
                                                     data-location="<?php echo htmlspecialchars($booking['pickup_location']); ?>">
                                                     <i class="fas fa-eye"></i> View
                                                 </button>
-                                                <?php if (strtolower($booking['payment_status'] ?? 'pending') === 'pending'): ?>
+                                                <?php if (strtolower($booking['payment_status']) === 'pending'): ?>
                                                 <button class="action-btn edit-btn" 
                                                     data-id="<?php echo $booking['booking_id']; ?>"
-                                                    data-amount="<?php echo $booking['total_price']; ?>"
+                                                    data-amount="<?php echo $booking['amount']; ?>"
                                                     data-status="<?php echo $booking['payment_status']; ?>">
                                                     Update Status
                                                 </button>
@@ -1533,34 +1742,55 @@ if (!isset($_GET['status'])) {
             </div>
 
             <div id="parts-section" class="hidden">
-                <div class="header">
-                    <h1>Spare Parts Management</h1>
+                <div class="section-header">
+                    <h2>Messages</h2>
                 </div>
+                <div class="messages-container">
+                    <div class="messages-sidebar">
+                        <h2>Enquiries</h2>
+                        <div class="user-list">
+                            <?php if ($users_result && $users_result->num_rows > 0): ?>
+                                <?php while ($user = $users_result->fetch_assoc()): ?>
+                                    <a href="?section=messages&user=<?= $user['user_id'] ?>" 
+                                       class="user-link <?= $user['user_id'] == $selected_user_id ? 'active' : '' ?>"
+                                       onclick="showChat(event, <?= $user['user_id'] ?>)">
+                                        <?= htmlspecialchars($user['fullname']) ?>
+                                    </a>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <p class="no-chat">No enquiries yet</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
 
-                <div class="parts-form content-section">
-                    <h2>Add New Spare Part</h2>
-                    <form id="addPartForm" class="add-part-form">
-                        <input
-                            type="text"
-                            id="partName"
-                            placeholder="Part Name"
-                            required
-                        />
-                        <input
-                            type="number"
-                            id="partPrice"
-                            placeholder="Price"
-                            required
-                        />
-                        <input type="file" id="partImage" accept="image/*" required />
-                        <button type="submit" class="button">Post Part</button>
-                    </form>
-                </div>
+                    <div class="chat-container">
+                        <?php if ($selected_user_id && $selected_user_name): ?>
+                            <div class="user-header">
+                                <?= htmlspecialchars($selected_user_name) ?>
+                            </div>
+                            <div class="chat-messages">
+                                <?php if ($chat_messages && $chat_messages->num_rows > 0): ?>
+                                    <?php while ($row = $chat_messages->fetch_assoc()): ?>
+                                        <div class="message <?= $row['is_admin_reply'] ? 'received' : 'sent' ?>">
+                                            <?= nl2br(htmlspecialchars($row['message'])) ?>
+                                            <span class="timestamp"><?= date('M d, H:i', strtotime($row['created_at'])) ?></span>
+                                        </div>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <p class="no-chat">No messages in this conversation.</p>
+                                <?php endif; ?>
+                            </div>
 
-                <div class="content-section">
-                    <h2>Parts Inventory</h2>
-                    <div id="partsGrid" class="listing-grid">
-                        <!-- Parts will be displayed here -->
+                            <form method="POST" class="reply-form">
+                                <input type="hidden" name="user_id" value="<?= $selected_user_id ?>">
+                                <textarea name="reply_message" placeholder="Type your message here..." required></textarea>
+                                <button type="submit">Send Message</button>
+                            </form>
+                        <?php else: ?>
+                            <div class="no-chat">
+                                <p>Select a user from the list to view their messages</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1572,9 +1802,6 @@ if (!isset($_GET['status'])) {
                         <span>Admin User</span>
                         <img src="assets/profile.jpg" alt="Admin" />
                         <div class="dropdown-menu">
-                            <a href="#" style="--i:1"><i class="fas fa-user"></i>My Profile</a>
-                            <a href="#" style="--i:2"><i class="fas fa-cog"></i>Account Settings</a>
-                            <a href="#" style="--i:3"><i class="fas fa-bell"></i>Notifications</a>
                             <a href="logout.php" style="--i:4"><i class="fas fa-sign-out-alt"></i>Logout</a>
                         </div>
                     </div>
@@ -1595,28 +1822,45 @@ if (!isset($_GET['status'])) {
                     </div>
                     <div class="stat-card">
                         <h3>Total Reviews</h3>
-                        <div class="value">128</div>
+                        <div class="value">
+                            <?php
+                            // Get total reviews count for owner's cars
+                            $owner_id = $_SESSION['user_id'];
+                            $reviewCountQuery = "SELECT COUNT(r.id) as total 
+                                                FROM reviews r 
+                                                JOIN cars c ON r.car_id = c.id 
+                                                WHERE c.owner_id = ?";
+                            $stmt = $conn->prepare($reviewCountQuery);
+                            $stmt->bind_param('i', $owner_id);
+                            $stmt->execute();
+                            $reviewResult = $stmt->get_result();
+                            $reviewCount = $reviewResult->fetch_assoc()['total'];
+                            echo $reviewCount;
+                            $stmt->close();
+                            ?>
+                        </div>
                     </div>
                 </div>
 
                 <div class="content-section">
                     <h2>Recent Listings</h2>
                     <div class="listing-grid">
-                        <div class="listing-card">
-                            <h3>Mercedes-Benz S-Class</h3>
-                            <p>Premium Sedan | $200/day</p>
-                            <p>Status: Available</p>
-                        </div>
-                        <div class="listing-card">
-                            <h3>BMW 7 Series Parts</h3>
-                            <p>Original Brake Pads | $350</p>
-                            <p>Status: In Stock</p>
-                        </div>
-                        <div class="listing-card">
-                            <h3>Luxury Workshop Services</h3>
-                            <p>Premium Maintenance | Various</p>
-                            <p>Status: Available</p>
-                        </div>
+                        <?php
+                        // Get recent cars from the database
+                        $recent_cars_query = "SELECT car_name, price FROM cars WHERE owner_id = ? ORDER BY id DESC LIMIT 3";
+                        $stmt = $conn->prepare($recent_cars_query);
+                        $stmt->bind_param("i", $_SESSION['user_id']);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+
+                        while($car = $result->fetch_assoc()) {
+                            echo '<div class="listing-card">
+                                    <h3>' . htmlspecialchars($car['car_name']) . '</h3>
+                                    <p>₹' . number_format($car['price'], 2) . '/day</p>
+                                  </div>';
+                        }
+                        $stmt->close();
+                        ?>
                     </div>
                 </div>
             </div>
@@ -1764,6 +2008,28 @@ if (!isset($_GET['status'])) {
         </div>
     </div>
 
+    <!-- Payment Status Update Modal -->
+    <div id="paymentStatusModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Update Payment Status</h3>
+            <form id="paymentStatusForm">
+                <input type="hidden" name="booking_id" id="payment_booking_id">
+                <input type="hidden" name="amount" id="payment_amount">
+                <div class="form-group">
+                    <label for="payment_status">Payment Status:</label>
+                    <select name="status" id="payment_status" class="form-control">
+                        <option value="pending">Pending</option>
+                        <option value="captured">Captured</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Location Popup Modal -->
     <div id="locationModal" class="modal">
         <div class="modal-content">
@@ -1795,6 +2061,29 @@ if (!isset($_GET['status'])) {
             border-radius: 8px;
             position: relative;
             animation: modalSlideIn 0.3s ease-out;
+        }
+
+        .edit-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .edit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .edit-btn i {
+            font-size: 0.9rem;
         }
 
         @keyframes modalSlideIn {
@@ -2103,89 +2392,228 @@ if (!isset($_GET['status'])) {
     });
     </script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add click handlers to all edit buttons
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const bookingId = this.getAttribute('data-id');
-                    const amount = this.getAttribute('data-amount');
-                    const currentStatus = this.getAttribute('data-status');
-                    openEditModal(bookingId, amount, currentStatus);
-                });
+        // Booking filters
+        function filterBookings(status, event) {
+            event.preventDefault(); // Prevent form submission
+            
+            // Update active button
+            document.querySelectorAll('.filter-button').forEach(btn => {
+                btn.classList.remove('active');
             });
+            event.target.classList.add('active');
 
-            function openEditModal(bookingId, amount, currentStatus) {
-                const modalHTML = `
-                    <div class="modal-overlay" id="editModal">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h3>Update Payment Status</h3>
-                                <button class="close-modal" onclick="closeModal()">&times;</button>
-                            </div>
-                            <div class="modal-body">
-                                <p><strong>Booking ID:</strong> #${bookingId}</p>
-                                <p><strong>Amount:</strong> ₹${amount}</p>
-                                <p><strong>Current Status:</strong> <span class="status-badge status-${currentStatus.toLowerCase()}">${currentStatus}</span></p>
-                                <div class="form-group" style="margin-top: 20px;">
-                                    <label for="newStatus">Update Status:</label>
-                                    <select id="newStatus" class="form-control" style="width: 100%; padding: 8px; margin-top: 5px;">
-                                        <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>Pending</option>
-                                        <option value="captured" ${currentStatus === 'captured' ? 'selected' : ''}>Captured</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-                                <button class="btn-primary" onclick="updateStatus(${bookingId}, ${amount})">Update Status</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                document.body.insertAdjacentHTML('beforeend', modalHTML);
-            }
-
-            window.closeModal = function() {
-                const modal = document.getElementById('editModal');
-                if (modal) {
-                    modal.remove();
+            // Get all booking rows
+            const bookings = document.querySelectorAll('.booking-row');
+            
+            bookings.forEach(booking => {
+                const bookingStatus = booking.getAttribute('data-status').toLowerCase();
+                if (status === 'all') {
+                    booking.style.display = '';
+                } else if (status === 'completed') {
+                    booking.style.display = bookingStatus === 'completed' ? '' : 'none';
+                } else if (status === 'cancelled') {
+                    booking.style.display = bookingStatus === 'cancelled' ? '' : 'none';
                 }
-            };
-
-            window.updateStatus = function(bookingId, amount) {
-                const newStatus = document.getElementById('newStatus').value;
+            });
+        }
+    </script>
+    <script>
+        // Booking filters with AJAX
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const filter = this.getAttribute('data-filter');
                 
-                fetch('update_payment_status.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `booking_id=${bookingId}&status=${newStatus}&amount=${amount}`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Payment status updated successfully!');
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while updating the status.');
+                // Update URL without page reload
+                const url = new URL(window.location);
+                url.searchParams.set('filter', filter);
+                window.history.pushState({}, '', url);
+                
+                // Add active class to clicked button
+                document.querySelectorAll('.filter-button').forEach(btn => {
+                    btn.classList.remove('active');
                 });
-            };
+                this.classList.add('active');
+                
+                try {
+                    const response = await fetch(`owner.php?filter=${filter}&ajax=true`);
+                    if (response.ok) {
+                        const data = await response.text();
+                        document.querySelector('#bookings-list').innerHTML = data;
+                    }
+                } catch (error) {
+                    console.error('Error fetching bookings:', error);
+                }
+            });
         });
     </script>
     <script>
-        // Booking filters
-        document.querySelectorAll('.filter-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const filter = this.getAttribute('data-filter');
-                window.location.href = `owner.php?filter=${filter}#bookings-section`;
+        function showChat(event, userId) {
+            event.preventDefault();
+            // Update active section
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-section') === 'messages') {
+                    item.classList.add('active');
+                }
             });
+
+            // Hide all sections
+            document.querySelectorAll('[id$="-section"]').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Show messages section
+            window.location.href = `?section=messages&user=${userId}`;
+        }
+
+        // Add this to your existing document ready function
+        document.addEventListener('DOMContentLoaded', function() {
+            // Your existing code...
+
+            // Handle messages section visibility
+            if (window.location.search.includes('section=messages')) {
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.getAttribute('data-section') === 'messages') {
+                        item.classList.add('active');
+                    }
+                });
+                document.querySelectorAll('[id$="-section"]').forEach(section => {
+                    section.classList.add('hidden');
+                });
+            }
+        });
+    </script>
+    <script>
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('[id$="-section"]').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Show selected section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.getAttribute('data-section') === sectionName) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Navigation handling
+        document.addEventListener('DOMContentLoaded', function() {
+            const navItems = document.querySelectorAll('.nav-item');
+            const sections = document.querySelectorAll('[id$="-section"]');
+            
+            // Handle navigation clicks
+            navItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const section = this.getAttribute('data-section');
+                    window.location.href = `?section=${section}`;
+                });
+            });
+
+            // Handle initial section based on URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const section = urlParams.get('section') || 'dashboard';
+            showSection(section);
+        });
+    </script>
+
+    <script>
+        // Payment Status Update Modal
+        const paymentStatusModal = document.getElementById('paymentStatusModal');
+        const paymentStatusForm = document.getElementById('paymentStatusForm');
+        
+        // Close button functionality
+        paymentStatusModal.querySelector('.close').addEventListener('click', () => {
+            paymentStatusModal.style.display = 'none';
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === paymentStatusModal) {
+                paymentStatusModal.style.display = 'none';
+            }
+        });
+
+        // Handle edit button clicks
+        document.addEventListener('click', function(e) {
+            if (e.target.matches('.edit-btn') || e.target.closest('.edit-btn')) {
+                const button = e.target.matches('.edit-btn') ? e.target : e.target.closest('.edit-btn');
+                const bookingId = button.dataset.id;
+                const amount = button.dataset.amount;
+                const currentStatus = button.dataset.status;
+
+                // Set form values
+                document.getElementById('payment_booking_id').value = bookingId;
+                document.getElementById('payment_amount').value = amount;
+                document.getElementById('payment_status').value = currentStatus;
+
+                // Show modal
+                paymentStatusModal.style.display = 'block';
+            }
+        });
+
+        // Handle form submission
+        paymentStatusForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch('update_payment_status.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Close modal
+                    paymentStatusModal.style.display = 'none';
+                    // Reload page to show updated status
+                    window.location.reload();
+                } else {
+                    alert(result.message || 'Error updating payment status');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating payment status');
+            }
         });
     </script>
 </body>
 </html>
-<?php $conn->close(); ?>
+<?php
+// Handle AJAX requests
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'true') {
+    // Only return the bookings list HTML
+    while ($booking = $all_bookings_result->fetch_assoc()) {
+        $status = $booking['booking_status'];
+        if ($booking['end_date'] < date('Y-m-d') && $status != 'cancelled') {
+            $status = 'completed';
+        }
+        
+        echo "<div class='booking-item' data-status='" . htmlspecialchars($status) . "'>";
+        echo "<h3>Booking #" . htmlspecialchars($booking['booking_id']) . "</h3>";
+        echo "<p>Car: " . htmlspecialchars($booking['car_name']) . "</p>";
+        echo "<p>Customer: " . htmlspecialchars($booking['user_name']) . "</p>";
+        echo "<p>Status: " . htmlspecialchars($status) . "</p>";
+        echo "<p>Dates: " . htmlspecialchars($booking['start_date']) . " to " . htmlspecialchars($booking['end_date']) . "</p>";
+        echo "<p>Amount: ₹" . htmlspecialchars($booking['amount']) . "</p>";
+        echo "</div>";
+    }
+    exit;
+}
+
+$conn->close();
+?>

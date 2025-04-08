@@ -38,8 +38,6 @@
           <li><a href="#rent">Rent</a></li>
           <li><a href="#ride">Ride</a></li>
           <li><a href="#contact">Contact</a></li>
-          <li><a href="#spare">Spare parts</a></li>
-          <li><a href="#workshops">Workshops</a></li>
         </ul>
         <div class="nav__btn">
           <a href="auth-page.php">
@@ -108,7 +106,7 @@
         </p>
         <div class="location__btn">
           <button class="btn">
-            <a href="location.html" style="color: white">Find a Location</a>
+            <a href="location.php" style="color: white">Find a Location</a>
           </button>
         </div>
       </div>
@@ -241,11 +239,15 @@
       <form action="/" class="select__form">
         <div class="select__price">
           <span><i class="ri-price-tag-3-line"></i></span>
-          <div><span id="select-price">225</span> /day</div>
+          <div><span id="select-price">10000</span> /day</div>
         </div>
         <div class="select__btns">
-          <button class="btn">View Details</button>
-          <button class="btn">Rent Now</button>
+          <a href="auth-page.php" class="btn btn-outline">
+            <i class="ri-file-list-3-line"></i> View Details
+          </a>
+          <a href="auth-page.php" class="btn btn-primary">
+            <i class="ri-car-line"></i> Rent Now
+          </a>
         </div>
       </form>
     </section>

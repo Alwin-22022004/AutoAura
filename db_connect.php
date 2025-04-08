@@ -109,7 +109,7 @@ $sql_create_bookings = "CREATE TABLE IF NOT EXISTS bookings (
     driver_charges DECIMAL(10,2) NOT NULL,
     insurance DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
-    payment_status ENUM('pending','captured', 'completed') DEFAULT 'pending',
+    payment_status ENUM('pending','captured', 'completed', 'refunded') DEFAULT 'pending',
     feedback_status ENUM('pending', 'submitted', 'skipped') DEFAULT 'pending',
     FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -145,7 +145,7 @@ $sql = "CREATE TABLE IF NOT EXISTS payments (
     order_id VARCHAR(255) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     currency VARCHAR(10) NOT NULL DEFAULT 'INR',
-    status VARCHAR(50) NOT NULL,
+    status ENUM('pending', 'captured', 'completed', 'refunded') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -153,6 +153,12 @@ $sql = "CREATE TABLE IF NOT EXISTS payments (
 
 if (!$conn->query($sql)) {
     echo "Error creating payments table: " . $conn->error;
+}
+
+// Alter existing payments table to update status field if it exists
+$alter_payment_status = "ALTER TABLE payments MODIFY COLUMN status ENUM('pending', 'captured', 'completed', 'refunded') NOT NULL DEFAULT 'pending'";
+if (!$conn->query($alter_payment_status)) {
+    echo "Error updating payments status field: " . $conn->error;
 }
 
 // Create workshops table
@@ -183,6 +189,22 @@ $sql = "CREATE TABLE IF NOT EXISTS complaints (
 
 if (!$conn->query($sql)) {
     echo "Error creating complaints table: " . $conn->error;
+}
+
+// Create enquiries table
+$sql = "CREATE TABLE IF NOT EXISTS enquiries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    owner_id INT,
+    message TEXT NOT NULL,
+    is_owner_reply BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+
+if (!$conn->query($sql)) {
+    echo "Error creating enquiries table: " . $conn->error;
 }
 
 // Set strict mode for better data integrity
