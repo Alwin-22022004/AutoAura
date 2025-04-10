@@ -115,21 +115,21 @@ nav {
 }
 
 .nav__links {
-  position: absolute;
-  margin-right: 90px;
-  bottom: 0;
-  left: 30;
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100vh;
   padding: 2rem;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
   gap: 2rem;
   background-color: var(--primary-color);
-  transition: transform 0.5s;
-  z-index: -1;
-  margin-left: 40px;
+  transform: translateY(-100%);
+  transition: transform 0.5s ease;
+  z-index: 8;
 }
 
 .nav__links.open {
@@ -168,20 +168,20 @@ nav {
   max-width: 750px;
   margin-inline: auto;
   margin-bottom: 2rem;
-  font-size: 4.5rem;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
   font-weight: 700;
   font-family: var(--header-font);
   color: var(--text-dark);
-  letter-spacing: -5px;
-  line-height: 5rem;
+  letter-spacing: -3px;
+  line-height: 1.2;
   text-align: center;
 }
 
 .header__container form {
-  max-width: 800px;
+  max-width: min(800px, 90%);
   margin-inline: auto;
   margin-bottom: 4rem;
-  padding: 1rem;
+  padding: clamp(0.5rem, 3vw, 1rem);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -189,6 +189,7 @@ nav {
   gap: 1rem;
   background-color: var(--white);
   box-shadow: 5px 10px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 
 .header__container .input__group {
@@ -718,7 +719,7 @@ footer {
   text-align: center;
 }
 
-@media (width > 540px) {
+@media (min-width: 540px) {
   .story__grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -728,7 +729,7 @@ footer {
   }
 }
 
-@media (width > 768px) {
+@media (min-width: 768px) {
   nav {
     position: static;
     padding: 2rem 1rem 0;
@@ -857,7 +858,7 @@ footer {
   }
 }
 
-@media (width > 1024px) {
+@media (min-width: 1024px) {
   .range__grid {
     gap: 1.5rem;
   }
@@ -935,10 +936,63 @@ footer {
   font-family: var(--header-font);
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
+/* Mobile-first responsive adjustments */
+@media (max-width: 480px) {
+  .nav__header {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  .nav__logo img {
+    width: 120px;
+  }
+
+  .header__container {
+    padding: 4rem 0.5rem;
+  }
+
+  .header__container .btn {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .header__container .input__group {
+    flex: 1 0 100%;
+  }
+
   .stats-container {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stats-card {
+    padding: 1rem;
+  }
+
+  .stats-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.1rem;
+  }
+
+  .stats-number {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .section__header {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    letter-spacing: -2px;
+    line-height: 1.2;
+  }
+
+  .section__container {
+    padding: 3rem 1rem;
+  }
+
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 
   .stats-card {
