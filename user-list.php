@@ -13,6 +13,10 @@ require_once 'db_connect.php';
 if (isset($_GET['view_pdf']) && is_numeric($_GET['view_pdf'])) {
     $user_id = intval($_GET['view_pdf']);
     
+    // Enable error reporting for debugging
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+    
     // Get PDF file path
     $stmt = $conn->prepare("SELECT verification_doc FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
@@ -23,29 +27,67 @@ if (isset($_GET['view_pdf']) && is_numeric($_GET['view_pdf'])) {
         $row = $result->fetch_assoc();
         $file_path = $row['verification_doc'];
         
-        // Check if the file path is valid and the file exists
-        if (!empty($file_path) && file_exists(__DIR__ . '/' . $file_path)) {
+        // Debug information
+        if (isset($_GET['debug'])) {
+            echo "File path from DB: " . $file_path . "<br>";
+            echo "__DIR__: " . __DIR__ . "<br>";
+        }
+        
+        // Check if the file path already includes the uploads directory
+        if (strpos($file_path, 'uploads/verification_documents/') === 0) {
             $full_path = __DIR__ . '/' . $file_path;
-            
+        } else {
+            $full_path = __DIR__ . '/uploads/verification_documents/' . $file_path;
+        }
+        
+        // Debug information
+        if (isset($_GET['debug'])) {
+            echo "Full path: " . $full_path . "<br>";
+            echo "File exists: " . (file_exists($full_path) ? 'Yes' : 'No') . "<br>";
+            if (file_exists($full_path)) {
+                echo "File size: " . filesize($full_path) . " bytes<br>";
+                echo "File permissions: " . substr(sprintf('%o', fileperms($full_path)), -4) . "<br>";
+            }
+        }
+        
+        if (!empty($file_path) && file_exists($full_path)) {
             // Get the file mime type
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mime_type = finfo_file($finfo, $full_path);
             finfo_close($finfo);
             
+            // Debug information
+            if (isset($_GET['debug'])) {
+                echo "MIME type: " . $mime_type . "<br>";
+            }
+            
             // Verify it's a PDF
             if ($mime_type === 'application/pdf') {
+                // Set headers
                 header('Content-Type: application/pdf');
                 header('Content-Disposition: inline; filename="verification_document.pdf"');
+                header('Content-Length: ' . filesize($full_path));
+                header('Cache-Control: public, must-revalidate, max-age=0');
+                header('Pragma: public');
+                header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
+                header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
                 readfile($full_path);
                 exit();
+            } else {
+                error_log("Invalid MIME type for user $user_id: $mime_type");
+                http_response_code(400);
+                exit('Invalid document type');
             }
+        } else {
+            error_log("File not found for user $user_id. Full path: $full_path");
+            http_response_code(404);
+            exit('Document not found');
         }
+    } else {
+        error_log("User $user_id not found");
+        http_response_code(404);
+        exit('User not found');
     }
-    
-    // If we get here, something went wrong
-    error_log("PDF not found for user $user_id. File path: $file_path");
-    http_response_code(404);
-    exit('Document not found');
 }
 ?>
 <!DOCTYPE html>

@@ -933,7 +933,7 @@ $profile_incomplete = empty($user['mobile']) || empty($user['verification_doc'])
                         <?php if (!empty($user['verification_doc'])): ?>
                             <i class="fas fa-file-pdf"></i>
                             <span>Current document uploaded</span>
-                            <a href="uploads/verification_documents/<?php echo htmlspecialchars($user['verification_doc']); ?>" target="_blank" class="view-doc">
+                            <a href="test_pdf.php?file=<?php echo htmlspecialchars($user['verification_doc']); ?>" target="_blank" class="view-doc">
                                 <i class="fas fa-eye"></i> View
                             </a>
                         <?php else: ?>
