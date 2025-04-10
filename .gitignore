@@ -1,7 +1,0 @@
-/vendor/
-.env
-client_secret.json
-config.php
-*.log
-.DS_Store
-node_modules/
