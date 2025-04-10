@@ -4,25 +4,48 @@ $username = "root";
 $password = "";
 $dbname = "car_rental";
 
-// Create connection
-$conn = new mysqli($servername, $username, $password);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// Create connection with retry mechanism
+function createConnection($maxRetries = 3) {
+    global $servername, $username, $password, $dbname;
+    
+    for ($i = 0; $i < $maxRetries; $i++) {
+        try {
+            $conn = new mysqli($servername, $username, $password, $dbname);
+            
+            if (!$conn->connect_error) {
+                $conn->set_charset("utf8mb4");
+                return $conn;
+            }
+            
+            // Wait for 1 second before retrying
+            sleep(1);
+        } catch (mysqli_sql_exception $e) {
+            if ($i === $maxRetries - 1) {
+                die("Connection failed after {$maxRetries} attempts: " . $e->getMessage());
+            }
+            // Wait before retry
+            sleep(1);
+        }
+    }
+    
+    die("Failed to establish database connection after {$maxRetries} attempts");
 }
 
-// Create database if not exists
-$sql = "CREATE DATABASE IF NOT EXISTS $dbname";
-if (!$conn->query($sql)) {
-    die("Error creating database: " . $conn->error);
+// Create connection with retry mechanism
+$conn = createConnection();
+
+// Check if we need to create the database
+$result = $conn->query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '$dbname'");
+if ($result->num_rows === 0) {
+    // Create database if it doesn't exist
+    $sql = "CREATE DATABASE IF NOT EXISTS $dbname";
+    if (!$conn->query($sql)) {
+        die("Error creating database: " . $conn->error);
+    }
+    
+    // Select the database
+    $conn->select_db($dbname);
 }
-
-// Select the database
-$conn->select_db($dbname);
-
-// Set charset to utf8mb4
-$conn->set_charset("utf8mb4");
 
 // Create users table with proper storage engine
 $sql = "CREATE TABLE IF NOT EXISTS users (
